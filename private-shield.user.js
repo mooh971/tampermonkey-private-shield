@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         🔒 Tampermonkey Private Shield
 // @namespace    https://github.com/mooh971/tampermonkey-private-shield
-// @version      1.0.9
+// @version      1.0.10
 // @description  Auto-hide emails and phone numbers on any webpage
 // @author       mooh971
 // @match        *://*/*
@@ -77,6 +77,7 @@
         return /^\d{1,2}:\d{2}(?::\d{2})?$/.test(norm);
     }
 
+    // High fidelity strict validation bounds matching correct structures exclusively
     function isIP(text) {
         const norm = toEnglishNumerals(text.trim()).split(':')[0];
         const parts = norm.split('.');
@@ -88,7 +89,6 @@
         });
     }
 
-    // Zero tolerance typing used to enforce strict ISO/Hijri structures
     function isDate(text) {
         const norm = toEnglishNumerals(text.trim());
         if (/\b\d{4}[\s\-/.]\d{1,2}[\s\-/.]\d{1,2}\b/.test(norm) || 
@@ -133,6 +133,10 @@
         const parent = node.parentNode;
         if (!parent || processed.has(parent) || SKIP_TAGS.has(parent.tagName) || parent.closest?.('head') || parent.isContentEditable) return;
 
+        if (parent.hasAttribute('title') && hasTargetData(parent.getAttribute('title'))) {
+            parent.removeAttribute('title');
+        }
+
         PATTERN.lastIndex = 0;
         const frag = document.createDocumentFragment();
         let last = 0, match, found = false;
@@ -150,7 +154,7 @@
                     continue;
                 }
 
-                if (!/^(05|01|06|07|09|00|\+)/.test(normVal)) {
+                if (!/^(05|01|06|07|09|00|\+|966|964|90|971|965|968|973|974|962|961|20|212|213|216|218|249|967|880)/.test(normVal)) {
                     const segments = normVal.split(/[\s\-]+/);
                     let isFinancialBypass = false;
                     for (let seg of segments) {
@@ -166,7 +170,7 @@
                 }
 
                 if (val.includes('.')) {
-                    if (!/^(05|01|06|07|09|00|\+)/.test(normVal)) {
+                    if (!/^(05|01|06|07|09|00|\+|966|964|90|971|965|968|973|974|962|961|20|212|213|216|218|249|967|880)/.test(normVal)) {
                         continue;
                     }
                 }
