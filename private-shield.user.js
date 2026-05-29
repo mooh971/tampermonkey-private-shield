@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         🔒 Tampermonkey Private Shield
 // @namespace    https://github.com/mooh971/tampermonkey-private-shield
-// @version      1.0.1
+// @version      1.0.2
 // @description  Auto-hide emails, phone numbers, and national IDs on any webpage
 // @author       mooh971
 // @match        *://*/*
@@ -11,21 +11,16 @@
 // @downloadURL  https://raw.githubusercontent.com/mooh971/tampermonkey-private-shield/main/private-shield.user.js
 // ==/UserScript==
 
+
 (function () {
     'use strict';
 
-    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    //  Patterns
-    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-    const PATTERN   = /([a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,})|(?:\+966\s?|0)(5\d[\s\-]?\d{3}[\s\-]?\d{4})|(?<!\d)([123]\d{9})(?!\d)/g;
-    const SKIP_TAGS = new Set(['SCRIPT', 'STYLE', 'NOSCRIPT', 'TEXTAREA', 'INPUT']);
+    const PATTERN = /([a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,})|((?:\+|00)\d{1,4}(?:[\s\-.()]*\d){6,12}\b|(?:\b|\d+)(?:06|0|8)(?:[\s\-.()]*\d){6,11}\b|(?<!\d)(?:[1-9])(?:[\s\-.()]*\d){6,11}(?!\d))|(?<!\d)([123]\d{9})(?!\d)/g;
+    const SKIP_TAGS = new Set(['SCRIPT', 'STYLE', 'NOSCRIPT', 'TEXTAREA', 'INPUT', 'HEAD', 'LINK', 'META']);
     const processed = new WeakSet();
-    let   badgeShown = false;
+    let badgeShown = false;
 
-    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    //  Styles
-    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    const tooltipText = 'Click to reveal 🔒';
 
     GM_addStyle(`
         .ps-hidden {
@@ -37,7 +32,9 @@
             background: rgba(0,105,111,0.08) !important;
             color: transparent !important;
             text-shadow: 0 0 6px rgba(0,0,0,0.55) !important;
+            filter: none !important;
             user-select: none !important;
+            transition: all 0.15s ease-in-out !important;
         }
         .ps-visible {
             cursor: pointer !important;
@@ -48,6 +45,18 @@
             background: rgba(0,105,111,0.06) !important;
             color: #01696f !important;
             font-weight: 600 !important;
+            text-shadow: none !important;
+            filter: none !important;
+            user-select: auto !important;
+            transition: all 0.15s ease-in-out !important;
+        }
+        .ps-hidden .ssb-blur-wrapper, .ps-visible .ssb-blur-wrapper {
+            filter: none !important;
+            background: transparent !important;
+            background-color: transparent !important;
+            text-shadow: inherit !important;
+            color: inherit !important;
+            pointer-events: none !important;
         }
         #ps-badge {
             position: fixed !important;
@@ -76,22 +85,40 @@
         }
     `);
 
-    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    //  Core
-    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    function hasTargetData(text) {
+        return text.includes('@') || /[0-9]{7,}/.test(text.replace(/[\s\-().]/g, ''));
+    }
+
+    function enforceAbsoluteClean(element, isVisible) {
+        if (isVisible) {
+            element.removeAttribute('title');
+            const nestedWrapper = element.querySelector('.ssb-blur-wrapper');
+            if (nestedWrapper) {
+                const pureText = nestedWrapper.textContent;
+                element.innerHTML = ''; 
+                element.textContent = pureText; 
+            }
+        } else {
+            element.setAttribute('title', tooltipText);
+        }
+    }
+
+    function cleanOverride(element, isVisible) {
+        enforceAbsoluteClean(element, isVisible);
+    }
 
     function maskNode(node) {
         if (processed.has(node)) return;
 
+        if (node.parentElement?.classList.contains('ssb-blur-wrapper') || node.parentElement?.closest?.('.ps-hidden, .ps-visible')) {
+            return;
+        }
+
         const text = node.textContent;
-        if (!text.includes('@') && !text.includes('05') && !text.includes('+966') && !/[123]\d{9}/.test(text)) return;
+        if (!hasTargetData(text)) return;
 
         const parent = node.parentNode;
-        if (!parent) return;
-        if (processed.has(parent)) return;
-        if (parent.closest?.('.ps-hidden, .ps-visible')) return;
-        if (SKIP_TAGS.has(parent.tagName)) return;
-        if (parent.isContentEditable) return;
+        if (!parent || processed.has(parent) || SKIP_TAGS.has(parent.tagName) || parent.closest?.('head') || parent.isContentEditable) return;
 
         PATTERN.lastIndex = 0;
         const frag = document.createDocumentFragment();
@@ -99,15 +126,22 @@
 
         while ((match = PATTERN.exec(text)) !== null) {
             found = true;
-            if (match.index > last)
+            if (match.index > last) {
                 frag.appendChild(document.createTextNode(text.slice(last, match.index)));
+            }
 
             const span = document.createElement('span');
             span.className = 'ps-hidden';
+            span.setAttribute('title', tooltipText);
             span.textContent = match[0];
-            span.addEventListener('click', function (e) {
+            
+            span.addEventListener('click', (e) => {
+                e.preventDefault();
                 e.stopPropagation();
-                this.className = this.className === 'ps-hidden' ? 'ps-visible' : 'ps-hidden';
+                
+                const isHidden = span.className === 'ps-hidden';
+                span.className = isHidden ? 'ps-visible' : 'ps-hidden';
+                cleanOverride(span, isHidden);
                 refreshBadge();
             });
             processed.add(span);
@@ -116,7 +150,9 @@
         }
 
         if (!found) return;
-        if (last < text.length) frag.appendChild(document.createTextNode(text.slice(last)));
+        if (last < text.length) {
+            frag.appendChild(document.createTextNode(text.slice(last)));
+        }
 
         processed.add(node);
         parent.replaceChild(frag, node);
@@ -127,25 +163,20 @@
 
         const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
             acceptNode(n) {
-                const t = n.textContent;
-                if (!t.includes('@') && !t.includes('05') && !t.includes('+966') && !/[123]\d{9}/.test(t))
+                if (!hasTargetData(n.textContent) || processed.has(n) || SKIP_TAGS.has(n.parentElement?.tagName) || n.parentElement?.closest?.('head, .ps-hidden, .ps-visible') || n.parentElement?.isContentEditable) {
                     return NodeFilter.FILTER_REJECT;
-                if (processed.has(n)) return NodeFilter.FILTER_REJECT;
-                if (SKIP_TAGS.has(n.parentElement?.tagName)) return NodeFilter.FILTER_REJECT;
-                if (n.parentElement?.isContentEditable) return NodeFilter.FILTER_REJECT;
+                }
                 return NodeFilter.FILTER_ACCEPT;
             }
         });
 
         const nodes = [];
-        while (walker.nextNode()) nodes.push(walker.currentNode);
+        while (walker.nextNode()) {
+            nodes.push(walker.currentNode);
+        }
         nodes.forEach(maskNode);
         refreshBadge();
     }
-
-    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    //  Badge
-    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
     function createBadge() {
         if (document.getElementById('ps-badge')) return;
@@ -156,8 +187,10 @@
         let allVisible = false;
         badge.addEventListener('click', () => {
             allVisible = !allVisible;
-            document.querySelectorAll('.ps-hidden, .ps-visible')
-                .forEach(el => el.className = allVisible ? 'ps-visible' : 'ps-hidden');
+            document.querySelectorAll('.ps-hidden, .ps-visible').forEach(el => {
+                el.className = allVisible ? 'ps-visible' : 'ps-hidden';
+                cleanOverride(el, allVisible);
+            });
             refreshBadge();
         });
 
@@ -191,32 +224,30 @@
         }
     }
 
-    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    //  Observer
-    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
     const observer = new MutationObserver(mutations => {
         mutations.forEach(({ addedNodes, characterData, target }) => {
             if (characterData && target.nodeType === Node.TEXT_NODE) {
-                maskNode(target);
+                if (!SKIP_TAGS.has(target.parentElement?.tagName) && !target.parentElement?.closest?.('head, .ps-hidden, .ps-visible')) {
+                    maskNode(target);
+                }
                 return;
             }
             addedNodes.forEach(node => {
-                if (node.nodeType === Node.ELEMENT_NODE) scanRoot(node);
-                if (node.nodeType === Node.TEXT_NODE)    maskNode(node);
+                if (node.nodeType === Node.ELEMENT_NODE) {
+                    if (!SKIP_TAGS.has(node.tagName) && !node.closest?.('head, .ps-hidden, .ps-visible')) scanRoot(node);
+                }
+                if (node.nodeType === Node.TEXT_NODE) {
+                    if (!SKIP_TAGS.has(node.parentElement?.tagName) && !node.parentElement?.closest?.('head, .ps-hidden, .ps-visible')) maskNode(node);
+                }
             });
         });
     });
 
     observer.observe(document.documentElement ?? document.body, {
-        childList     : true,
-        subtree       : true,
-        characterData : true
+        childList: true,
+        subtree: true,
+        characterData: true
     });
-
-    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    //  Init
-    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
     function init() {
         createBadge();
@@ -228,5 +259,4 @@
     } else {
         init();
     }
-
 })();
