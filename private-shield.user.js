@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         🔒 Tampermonkey Private Shield
 // @namespace    https://github.com/mooh971/tampermonkey-private-shield
-// @version      1.0.10
+// @version      1.0.11
 // @description  Auto-hide emails and phone numbers on any webpage
 // @author       mooh971
 // @match        *://*/*
@@ -52,7 +52,7 @@
             position: fixed !important;
             bottom: 12px !important;
             right: 12px !important;
-            z-index:  !important;
+            z-index: 2147483647 !important;
             padding: 2px 8px !important;
             border-radius: 4px !important;
             border: 1px solid rgba(0,105,111,0.3) !important;
@@ -69,7 +69,7 @@
     `);
 
     function toEnglishNumerals(str) {
-        return str.replace(/[\u200e\u200f\u202a-\u202e\u2066-\u2069]/g, '').replace(/[٠-٩]/g, d => ''.indexOf(d));
+        return str.replace(/[\u200e\u200f\u202a-\u202e\u2066-\u2069]/g, '').replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d));
     }
 
     function isTime(text) {
@@ -78,6 +78,7 @@
     }
 
     // High fidelity strict validation bounds matching correct structures exclusively
+    // Re-verified with standard IPv4 network specifications
     function isIP(text) {
         const norm = toEnglishNumerals(text.trim()).split(':')[0];
         const parts = norm.split('.');
@@ -103,11 +104,50 @@
     }
 
     function hasTargetData(text) {
+        if (!text) return false;
         if (text.includes('@')) return true;
         const norm = toEnglishNumerals(text);
         if (/\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}/.test(norm)) return true;
         const clean = norm.replace(/[\s\-().,،]/g, '');
         return /[0-9]{7,}/.test(clean);
+    }
+
+    function maskAttributes(el) {
+        if (!el || !el.getAttribute) return;
+        ['title', 'aria-label'].forEach(attr => {
+            if (el.hasAttribute(attr)) {
+                const val = el.getAttribute(attr);
+                if (hasTargetData(val)) {
+                    PATTERN.lastIndex = 0;
+                    if (PATTERN.test(val)) {
+                        PATTERN.lastIndex = 0;
+                        const masked = val.replace(PATTERN, (match) => {
+                            const normVal = toEnglishNumerals(match).trim();
+                            if (!match.includes('@') && !isIP(match)) {
+                                if (isTime(match) || isDate(match)) return match;
+                                if (/[\d٠-٩]+[.٫]\d+[\s\-]+[\d٠-٩]+[.٫]\d+/.test(normVal)) return match;
+                                if (!/^(05|01|06|07|09|00|\+|966|964|90|971|965|968|973|974|962|961|20|212|213|216|218|249|967|880)/.test(normVal)) {
+                                    const segments = normVal.split(/[\s\-]+/);
+                                    let isFinancialBypass = false;
+                                    for (let seg of segments) {
+                                        const cleanSeg = seg.replace(/[^0-9]/g, '');
+                                        if ((seg.includes('.') || seg.includes('٫') || cleanSeg.length >= 5)) {
+                                            isFinancialBypass = true;
+                                            break;
+                                        }
+                                    }
+                                    if (isFinancialBypass) return match;
+                                }
+                                const digitsOnly = normVal.replace(/[^0-9]/g, '');
+                                if (digitsOnly.length < 7) return match;
+                            }
+                            return '🔒';
+                        });
+                        el.setAttribute(attr, masked);
+                    }
+                }
+            }
+        });
     }
 
     function enforceAbsoluteClean(element, isVisible) {
@@ -132,10 +172,6 @@
 
         const parent = node.parentNode;
         if (!parent || processed.has(parent) || SKIP_TAGS.has(parent.tagName) || parent.closest?.('head') || parent.isContentEditable) return;
-
-        if (parent.hasAttribute('title') && hasTargetData(parent.getAttribute('title'))) {
-            parent.removeAttribute('title');
-        }
 
         PATTERN.lastIndex = 0;
         const frag = document.createDocumentFragment();
@@ -220,6 +256,11 @@
     function scanRoot(root) {
         if (!root?.querySelectorAll) return;
 
+        if (root.nodeType === Node.ELEMENT_NODE) {
+            maskAttributes(root);
+        }
+        root.querySelectorAll('*').forEach(maskAttributes);
+
         const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
             acceptNode(n) {
                 if (!processed.has(n) && hasTargetData(n.textContent)) {
@@ -287,7 +328,13 @@
     }
 
     const observer = new MutationObserver(mutations => {
-        mutations.forEach(({ addedNodes, characterData, target }) => {
+        mutations.forEach(({ addedNodes, characterData, target, type }) => {
+            if (type === 'attributes') {
+                if (target.nodeType === Node.ELEMENT_NODE && !SKIP_TAGS.has(target.tagName) && !target.closest?.('head, .ps-hidden, .ps-visible')) {
+                    maskAttributes(target);
+                }
+                return;
+            }
             if (characterData && target.nodeType === Node.TEXT_NODE) {
                 if (!SKIP_TAGS.has(target.parentElement?.tagName) && !target.parentElement?.closest?.('head, .ps-hidden, .ps-visible')) {
                     maskNode(target);
@@ -308,7 +355,9 @@
     observer.observe(document.documentElement ?? document.body, {
         childList: true,
         subtree: true,
-        characterData: true
+        characterData: true,
+        attributes: true,
+        attributeFilter: ['title', 'aria-label']
     });
 
     function init() {
