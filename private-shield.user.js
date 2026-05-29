@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         🔒 Tampermonkey Private Shield
 // @namespace    https://github.com/mooh971/tampermonkey-private-shield
-// @version      1.0.3
+// @version      1.0.4
 // @description  Auto-hide emails and phone numbers on any webpage
 // @author       mooh971
 // @match        *://*/*
@@ -14,7 +14,7 @@
 (function () {
     'use strict';
 
-    const PATTERN = /([a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,})|((?:\+|00)\d{1,4}(?:[\s\-.()]*\d){6,12}\b|(?:\b|\d+)(?:06|0|8)(?:[\s\-.()]*\d){6,11}\b|(?<!\d)(?:[1-9])(?:[\s\-.()]*\d){6,11}(?!\d))/g;
+    const PATTERN = /([a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,})|((?<![0-9٠-٩])(?:\+|00|٠٠)?[0-9٠-٩](?:[\s\-.()]*[0-9٠-٩]){6,14}(?![0-9٠-٩]))/g;
     const SKIP_TAGS = new Set(['SCRIPT', 'STYLE', 'NOSCRIPT', 'TEXTAREA', 'INPUT', 'HEAD', 'LINK', 'META']);
     const processed = new WeakSet();
     let badgeShown = false;
@@ -49,14 +49,6 @@
             user-select: auto !important;
             transition: all 0.15s ease-in-out !important;
         }
-        .ps-hidden .ssb-blur-wrapper, .ps-visible .ssb-blur-wrapper {
-            filter: none !important;
-            background: transparent !important;
-            background-color: transparent !important;
-            text-shadow: inherit !important;
-            color: inherit !important;
-            pointer-events: none !important;
-        }
         #ps-badge {
             position: fixed !important;
             bottom: 12px !important;
@@ -73,19 +65,40 @@
             cursor: pointer !important;
             transition: opacity 0.35s ease, transform 0.35s ease !important;
         }
-        #ps-badge:hover {
-            background: rgba(0,105,111,0.08) !important;
-            color: #01696f !important;
-        }
-        #ps-badge.ps-out {
-            opacity: 0 !important;
-            transform: translateY(6px) !important;
-            pointer-events: none !important;
-        }
+        #ps-badge:hover { background: rgba(0,105,111,0.08) !important; color: #01696f !important; }
+        #ps-badge.ps-out { opacity: 0 !important; transform: translateY(6px) !important; pointer-events: none !important; }
     `);
 
+    function toEnglishNumerals(str) {
+        return str.replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d));
+    }
+
+    function isDate(text) {
+        const norm = toEnglishNumerals(text.trim());
+
+        if (/^\d{4}[\s\-/.]\d{1,2}[\s\-/.]\d{1,2}$/.test(norm) || 
+            /^\d{1,2}[\s\-/.]\d{1,2}[\s\-/.]\d{4}$/.test(norm)) {
+            return true;
+        }
+
+        const digitsOnly = norm.replace(/[^0-9]/g, '');
+        if (digitsOnly.length === 8) {
+            const startsWithYear = /^(19|20|14)/.test(digitsOnly);
+            const endsWithYear = /(19|20|14)\d{2}$/.test(digitsOnly);
+            if (startsWithYear || endsWithYear) return true; 
+        }
+        return false;
+    }
+
     function hasTargetData(text) {
-        return text.includes('@') || /[0-9]{7,}/.test(text.replace(/[\s\-().]/g, ''));
+        if (text.includes('@')) return true;
+        
+        const clean = text.replace(/[\s\-().]/g, '');
+        if (/[0-9]{7,}/.test(clean) || /[٠-٩]{7,}/.test(clean)) {
+            if (isDate(text)) return false; 
+            return true;
+        }
+        return false;
     }
 
     function enforceAbsoluteClean(element, isVisible) {
@@ -93,25 +106,17 @@
             element.removeAttribute('title');
             const nestedWrapper = element.querySelector('.ssb-blur-wrapper');
             if (nestedWrapper) {
-                const pureText = nestedWrapper.textContent;
                 element.innerHTML = ''; 
-                element.textContent = pureText; 
+                element.textContent = nestedWrapper.textContent; 
             }
         } else {
             element.setAttribute('title', tooltipText);
         }
     }
 
-    function cleanOverride(element, isVisible) {
-        enforceAbsoluteClean(element, isVisible);
-    }
-
     function maskNode(node) {
         if (processed.has(node)) return;
-
-        if (node.parentElement?.classList.contains('ssb-blur-wrapper') || node.parentElement?.closest?.('.ps-hidden, .ps-visible')) {
-            return;
-        }
+        if (node.parentElement?.classList.contains('ssb-blur-wrapper') || node.parentElement?.closest?.('.ps-hidden, .ps-visible')) return;
 
         const text = node.textContent;
         if (!hasTargetData(text)) return;
@@ -124,6 +129,10 @@
         let last = 0, match, found = false;
 
         while ((match = PATTERN.exec(text)) !== null) {
+            if (isDate(match[0])) {
+                continue;
+            }
+
             found = true;
             if (match.index > last) {
                 frag.appendChild(document.createTextNode(text.slice(last, match.index)));
@@ -137,10 +146,9 @@
             span.addEventListener('click', (e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                
                 const isHidden = span.className === 'ps-hidden';
                 span.className = isHidden ? 'ps-visible' : 'ps-hidden';
-                cleanOverride(span, isHidden);
+                enforceAbsoluteClean(span, isHidden);
                 refreshBadge();
             });
             processed.add(span);
@@ -188,7 +196,7 @@
             allVisible = !allVisible;
             document.querySelectorAll('.ps-hidden, .ps-visible').forEach(el => {
                 el.className = allVisible ? 'ps-visible' : 'ps-hidden';
-                cleanOverride(el, allVisible);
+                enforceAbsoluteClean(el, allVisible);
             });
             refreshBadge();
         });
