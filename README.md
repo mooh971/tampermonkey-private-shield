@@ -8,6 +8,11 @@
 
 ---
 
+### 📷 Live Demo
+<img src="https://raw.githubusercontent.com/mooh971/tampermonkey-private-shield/main/test.gif" width="600" alt="Private Shield Demo" />
+
+---
+
 ### ✨ Key Features
 
 | Feature | Description |
