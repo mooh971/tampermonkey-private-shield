@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         🔒 Tampermonkey Private Shield
 // @namespace    https://github.com/mooh971/tampermonkey-private-shield
-// @version      1.0.4
+// @version      1.0.5
 // @description  Auto-hide emails and phone numbers on any webpage
 // @author       mooh971
 // @match        *://*/*
@@ -14,7 +14,7 @@
 (function () {
     'use strict';
 
-    const PATTERN = /([a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,})|((?<![0-9٠-٩])(?:\+|00|٠٠)?[0-9٠-٩](?:[\s\-.()]*[0-9٠-٩]){6,14}(?![0-9٠-٩]))/g;
+    const PATTERN = /([a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,})|((?<![0-9٠-٩])[0-9٠-٩]{1,3}\.[0-9٠-٩]{1,3}\.[0-9٠-٩]{1,3}\.[0-9٠-٩]{1,3}(?::[0-9٠-٩]{1,5})?(?![0-9٠-٩]))|((?<![0-9٠-٩])(?:\+|00|٠٠)?[0-9٠-٩](?:[\s\-.()]*[0-9٠-٩]){6,14}(?![0-9٠-٩]))/g;
     const SKIP_TAGS = new Set(['SCRIPT', 'STYLE', 'NOSCRIPT', 'TEXTAREA', 'INPUT', 'HEAD', 'LINK', 'META']);
     const processed = new WeakSet();
     let badgeShown = false;
@@ -73,32 +73,41 @@
         return str.replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d));
     }
 
+    function isTime(text) {
+        const norm = toEnglishNumerals(text.trim());
+        return /^\d{1,2}:\d{2}(?::\d{2})?$/.test(norm);
+    }
+
+    function isIP(text) {
+        const norm = toEnglishNumerals(text.trim()).split(':')[0];
+        const parts = norm.split('.');
+        if (parts.length !== 4) return false;
+        return parts.every(p => {
+            const n = parseInt(p, 10);
+            return !isNaN(n) && n >= 0 && n <= 255;
+        });
+    }
+
+    // Explicitly bypass standard 3-segment dates
     function isDate(text) {
         const norm = toEnglishNumerals(text.trim());
-
-        if (/^\d{4}[\s\-/.]\d{1,2}[\s\-/.]\d{1,2}$/.test(norm) || 
-            /^\d{1,2}[\s\-/.]\d{1,2}[\s\-/.]\d{4}$/.test(norm)) {
+        if (/\b\d{4}[\s\-/.]\d{1,2}[\s\-/.]\d{1,2}\b/.test(norm) || 
+            /\b\d{1,2}[\s\-/.]\d{1,2}[\s\-/.]\d{4}\b/.test(norm)) {
             return true;
         }
-
         const digitsOnly = norm.replace(/[^0-9]/g, '');
-        if (digitsOnly.length === 8) {
-            const startsWithYear = /^(19|20|14)/.test(digitsOnly);
-            const endsWithYear = /(19|20|14)\d{2}$/.test(digitsOnly);
-            if (startsWithYear || endsWithYear) return true; 
+        if (digitsOnly.length === 8 || digitsOnly.length === 10) {
+            return /^(19|20|14)/.test(digitsOnly);
         }
         return false;
     }
 
     function hasTargetData(text) {
         if (text.includes('@')) return true;
-        
+        const norm = toEnglishNumerals(text);
+        if (/\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}/.test(norm)) return true;
         const clean = text.replace(/[\s\-().]/g, '');
-        if (/[0-9]{7,}/.test(clean) || /[٠-٩]{7,}/.test(clean)) {
-            if (isDate(text)) return false; 
-            return true;
-        }
-        return false;
+        return /[0-9]{7,}/.test(clean) || /[٠-٩]{7,}/.test(clean);
     }
 
     function enforceAbsoluteClean(element, isVisible) {
@@ -129,8 +138,30 @@
         let last = 0, match, found = false;
 
         while ((match = PATTERN.exec(text)) !== null) {
-            if (isDate(match[0])) {
-                continue;
+            const val = match[0];
+            const normVal = toEnglishNumerals(val).trim();
+
+            if (!val.includes('@')) {
+                if (isTime(val)) {
+                    continue;
+                }
+
+                if (val.includes('.')) {
+                    if (!isIP(val)) {
+                        if (!/^(05|01|06|07|09|00|\+)/.test(normVal)) {
+                            continue;
+                        }
+                    }
+                }
+
+                if (isDate(val)) {
+                    continue;
+                }
+
+                const digitsOnly = normVal.replace(/[^0-9]/g, '');
+                if (digitsOnly.length < 7) {
+                    continue;
+                }
             }
 
             found = true;
@@ -141,7 +172,7 @@
             const span = document.createElement('span');
             span.className = 'ps-hidden';
             span.setAttribute('title', tooltipText);
-            span.textContent = match[0];
+            span.textContent = val;
             
             span.addEventListener('click', (e) => {
                 e.preventDefault();
@@ -153,7 +184,7 @@
             });
             processed.add(span);
             frag.appendChild(span);
-            last = match.index + match[0].length;
+            last = match.index + val.length;
         }
 
         if (!found) return;
@@ -170,10 +201,13 @@
 
         const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
             acceptNode(n) {
-                if (!hasTargetData(n.textContent) || processed.has(n) || SKIP_TAGS.has(n.parentElement?.tagName) || n.parentElement?.closest?.('head, .ps-hidden, .ps-visible') || n.parentElement?.isContentEditable) {
-                    return NodeFilter.FILTER_REJECT;
+                if (!processed.has(n) && hasTargetData(n.textContent)) {
+                    if (SKIP_TAGS.has(n.parentElement?.tagName) || n.parentElement?.closest?.('head, .ps-hidden, .ps-visible') || n.parentElement?.isContentEditable) {
+                        return NodeFilter.FILTER_REJECT;
+                    }
+                    return NodeFilter.FILTER_ACCEPT;
                 }
-                return NodeFilter.FILTER_ACCEPT;
+                return NodeFilter.FILTER_REJECT;
             }
         });
 
