@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         🔒 Tampermonkey Private Shield
 // @namespace    https://github.com/mooh971/tampermonkey-private-shield
-// @version      1.0.11
+// @version      1.0.12
 // @description  Auto-hide emails and phone numbers on any webpage
 // @author       mooh971
 // @match        *://*/*
@@ -52,7 +52,7 @@
             position: fixed !important;
             bottom: 12px !important;
             right: 12px !important;
-            z-index: 2147483647 !important;
+            z-index:  !important;
             padding: 2px 8px !important;
             border-radius: 4px !important;
             border: 1px solid rgba(0,105,111,0.3) !important;
@@ -69,7 +69,7 @@
     `);
 
     function toEnglishNumerals(str) {
-        return str.replace(/[\u200e\u200f\u202a-\u202e\u2066-\u2069]/g, '').replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d));
+        return str.replace(/[\u200e\u200f\u202a-\u202e\u2066-\u2069]/g, '').replace(/[٠-٩]/g, d => ''.indexOf(d));
     }
 
     function isTime(text) {
@@ -77,8 +77,6 @@
         return /^\d{1,2}:\d{2}(?::\d{2})?$/.test(norm);
     }
 
-    // High fidelity strict validation bounds matching correct structures exclusively
-    // Re-verified with standard IPv4 network specifications
     function isIP(text) {
         const norm = toEnglishNumerals(text.trim()).split(':')[0];
         const parts = norm.split('.');
@@ -143,7 +141,9 @@
                             }
                             return '🔒';
                         });
-                        el.setAttribute(attr, masked);
+                        if (val !== masked) {
+                            el.setAttribute(attr, masked);
+                        }
                     }
                 }
             }
@@ -259,7 +259,7 @@
         if (root.nodeType === Node.ELEMENT_NODE) {
             maskAttributes(root);
         }
-        root.querySelectorAll('*').forEach(maskAttributes);
+        root.querySelectorAll('[title], [aria-label]').forEach(maskAttributes);
 
         const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
             acceptNode(n) {
@@ -328,13 +328,7 @@
     }
 
     const observer = new MutationObserver(mutations => {
-        mutations.forEach(({ addedNodes, characterData, target, type }) => {
-            if (type === 'attributes') {
-                if (target.nodeType === Node.ELEMENT_NODE && !SKIP_TAGS.has(target.tagName) && !target.closest?.('head, .ps-hidden, .ps-visible')) {
-                    maskAttributes(target);
-                }
-                return;
-            }
+        mutations.forEach(({ addedNodes, characterData, target }) => {
             if (characterData && target.nodeType === Node.TEXT_NODE) {
                 if (!SKIP_TAGS.has(target.parentElement?.tagName) && !target.parentElement?.closest?.('head, .ps-hidden, .ps-visible')) {
                     maskNode(target);
@@ -355,9 +349,7 @@
     observer.observe(document.documentElement ?? document.body, {
         childList: true,
         subtree: true,
-        characterData: true,
-        attributes: true,
-        attributeFilter: ['title', 'aria-label']
+        characterData: true
     });
 
     function init() {
