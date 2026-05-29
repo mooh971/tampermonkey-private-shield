@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         🔒 Tampermonkey Private Shield
 // @namespace    https://github.com/mooh971/tampermonkey-private-shield
-// @version      1.0.6
+// @version      1.0.7
 // @description  Auto-hide emails and phone numbers on any webpage
 // @author       mooh971
 // @match        *://*/*
@@ -14,11 +14,10 @@
 (function () {
     'use strict';
 
-    const PATTERN = /([a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,})|((?<![0-9٠-٩])[0-9٠-٩]{1,3}\.[0-9٠-٩]{1,3}\.[0-9٠-٩]{1,3}\.[0-9٠-٩]{1,3}(?::[0-9٠-٩]{1,5})?(?![0-9٠-٩]))|((?<![0-9٠-٩])(?:\+|00|٠٠)?[0-9٠-٩](?:[\s\-.()]*[0-9٠-٩]){6,14}(?![0-9٠-٩]))/g;
+    const PATTERN = /([a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,})|((?<![0-9٠-٩])[0-9٠-٩]{1,3}\.[0-9٠-٩]{1,3}\.[0-9٠-٩]{1,3}\.[0-9٠-٩]{1,3}(?::[0-9٠-٩]{1,5})?(?![0-9٠-٩]))|((?<![0-9٠-٩])(?:\+|00|٠٠)?[ \u200e\u200f]*[0-9٠-٩](?:[\s\-.()\u200e\u200f]*[0-9٠-٩]){6,14}(?![0-9٠-٩]))/g;
     const SKIP_TAGS = new Set(['SCRIPT', 'STYLE', 'NOSCRIPT', 'TEXTAREA', 'INPUT', 'HEAD', 'LINK', 'META']);
     const processed = new WeakSet();
     let badgeShown = false;
-
     const tooltipText = 'Click to reveal 🔒';
 
     GM_addStyle(`
@@ -53,7 +52,7 @@
             position: fixed !important;
             bottom: 12px !important;
             right: 12px !important;
-            z-index: 2147483647 !important;
+            z-index:  !important;
             padding: 2px 8px !important;
             border-radius: 4px !important;
             border: 1px solid rgba(0,105,111,0.3) !important;
@@ -70,17 +69,13 @@
     `);
 
     function toEnglishNumerals(str) {
-        return str.replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d));
+        return str.replace(/[\u200e\u200f\u202a-\u202e]/g, '').replace(/[٠-٩]/g, d => ''.indexOf(d));
     }
 
+    // Classifiers
     function isTime(text) {
         const norm = toEnglishNumerals(text.trim());
         return /^\d{1,2}:\d{2}(?::\d{2})?$/.test(norm);
-    }
-
-    function isDecimal(text) {
-        const norm = toEnglishNumerals(text.trim());
-        return /^\d+[.٫]\d+$/.test(norm);
     }
 
     function isIP(text) {
@@ -111,8 +106,8 @@
         if (text.includes('@')) return true;
         const norm = toEnglishNumerals(text);
         if (/\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}/.test(norm)) return true;
-        const clean = text.replace(/[\s\-().]/g, '');
-        return /[0-9]{7,}/.test(clean) || /[٠-٩]{7,}/.test(clean);
+        const clean = norm.replace(/[\s\-().,،]/g, '');
+        return /[0-9]{7,}/.test(clean);
     }
 
     function enforceAbsoluteClean(element, isVisible) {
@@ -146,16 +141,25 @@
             const val = match[0];
             const normVal = toEnglishNumerals(val).trim();
 
-            if (val.includes('@')) {
-                // Emails are always masked
-            } else if (isIP(val)) {
-                // Valid IPv4 blocks are always masked directly
-            } else {
+            if (!val.includes('@') && !isIP(val)) {
                 if (isTime(val)) {
                     continue;
                 }
 
-                if (isDecimal(val)) {
+                const segments = normVal.split(/[\s\-]+/);
+                let isFinancialBypass = false;
+                for (let seg of segments) {
+                    const cleanSeg = seg.replace(/[^0-9]/g, '');
+                    if ((seg.includes('.') || seg.includes('٫') || cleanSeg.length >= 5) && !/^(05|01|06|07|09|00|\+)/.test(seg.trim())) {
+                        isFinancialBypass = true;
+                        break;
+                    }
+                }
+                if (isFinancialBypass) {
+                    continue;
+                }
+
+                if (val.includes('.')) {
                     if (!/^(05|01|06|07|09|00|\+)/.test(normVal)) {
                         continue;
                     }
