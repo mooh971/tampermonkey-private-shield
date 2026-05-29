@@ -7,6 +7,8 @@
 // @match        *://*/*
 // @grant        GM_addStyle
 // @run-at       document-start
+// @updateURL    https://raw.githubusercontent.com/mooh971/tampermonkey-private-shield/main/private-shield.user.js
+// @downloadURL  https://raw.githubusercontent.com/mooh971/tampermonkey-private-shield/main/private-shield.user.js
 // ==/UserScript==
 
 (function () {
