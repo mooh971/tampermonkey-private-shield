@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         🔒 Tampermonkey Private Shield
 // @namespace    https://github.com/mooh971/tampermonkey-private-shield
-// @version      1.0.0
+// @version      1.0.1
 // @description  Auto-hide emails, phone numbers, and national IDs on any webpage
 // @author       mooh971
 // @match        *://*/*
@@ -194,7 +194,11 @@
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
     const observer = new MutationObserver(mutations => {
-        mutations.forEach(({ addedNodes }) => {
+        mutations.forEach(({ addedNodes, characterData, target }) => {
+            if (characterData && target.nodeType === Node.TEXT_NODE) {
+                maskNode(target);
+                return;
+            }
             addedNodes.forEach(node => {
                 if (node.nodeType === Node.ELEMENT_NODE) scanRoot(node);
                 if (node.nodeType === Node.TEXT_NODE)    maskNode(node);
@@ -203,8 +207,9 @@
     });
 
     observer.observe(document.documentElement ?? document.body, {
-        childList: true,
-        subtree: true
+        childList     : true,
+        subtree       : true,
+        characterData : true
     });
 
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -214,13 +219,6 @@
     function init() {
         createBadge();
         scanRoot(document.body);
-
-        let lastSize = 0, tries = 0;
-        const retry = setInterval(() => {
-            const size = document.body.innerHTML.length;
-            if (size !== lastSize) { lastSize = size; scanRoot(document.body); }
-            if (++tries >= 20) clearInterval(retry);
-        }, 1000);
     }
 
     if (document.readyState === 'loading') {
