@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         🔒 Tampermonkey Private Shield
 // @namespace    https://github.com/mooh971/tampermonkey-private-shield
-// @version      1.0.2
-// @description  Auto-hide emails, phone numbers, and national IDs on any webpage
+// @version      1.0.3
+// @description  Auto-hide emails and phone numbers on any webpage
 // @author       mooh971
 // @match        *://*/*
 // @grant        GM_addStyle
@@ -11,11 +11,10 @@
 // @downloadURL  https://raw.githubusercontent.com/mooh971/tampermonkey-private-shield/main/private-shield.user.js
 // ==/UserScript==
 
-
 (function () {
     'use strict';
 
-    const PATTERN = /([a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,})|((?:\+|00)\d{1,4}(?:[\s\-.()]*\d){6,12}\b|(?:\b|\d+)(?:06|0|8)(?:[\s\-.()]*\d){6,11}\b|(?<!\d)(?:[1-9])(?:[\s\-.()]*\d){6,11}(?!\d))|(?<!\d)([123]\d{9})(?!\d)/g;
+    const PATTERN = /([a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,})|((?:\+|00)\d{1,4}(?:[\s\-.()]*\d){6,12}\b|(?:\b|\d+)(?:06|0|8)(?:[\s\-.()]*\d){6,11}\b|(?<!\d)(?:[1-9])(?:[\s\-.()]*\d){6,11}(?!\d))/g;
     const SKIP_TAGS = new Set(['SCRIPT', 'STYLE', 'NOSCRIPT', 'TEXTAREA', 'INPUT', 'HEAD', 'LINK', 'META']);
     const processed = new WeakSet();
     let badgeShown = false;
