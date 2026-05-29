@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         🔒 Tampermonkey Private Shield
 // @namespace    https://github.com/mooh971/tampermonkey-private-shield
-// @version      1.0.12
+// @version      1.1.0
 // @description  Auto-hide emails and phone numbers on any webpage
 // @author       mooh971
 // @match        *://*/*
@@ -14,7 +14,7 @@
 (function () {
     'use strict';
 
-    const PATTERN = /([a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,})|((?<![0-9٠-٩])[0-9٠-٩]{1,3}\.[0-9٠-٩]{1,3}\.[0-9٠-٩]{1,3}\.[0-9٠-٩]{1,3}(?::[0-9٠-٩]{1,5})?(?![0-9٠-٩]))|((?<![0-9٠-٩])(?:\+|00|٠٠)?[ \u200e\u200f\u202a-\u202e\u2066-\u2069]*[0-9٠-٩](?:[\s\-.()\u200e\u200f\u202a-\u202e\u2066-\u2069]*[0-9٠-٩]){6,14}(?![0-9٠-٩]))/g;
+    const PATTERN = /([^\s,،<>]+@[^\s,،<>]+)|((?<![0-9٠-٩])[0-9٠-٩]{1,3}\.[0-9٠-٩]{1,3}\.[0-9٠-٩]{1,3}\.[0-9٠-٩]{1,3}(?::[0-9٠-٩]{1,5})?(?![0-9٠-٩]))|((?<![0-9٠-٩.,٫])(?:\+|00|٠٠)?[ \u200e\u200f\u202a-\u202e\u2066-\u2069]*[0-9٠-٩](?:[ \t\-.()\u200e\u200f\u202a-\u202e\u2066-\u2069]*[0-9٠-٩]){6,14}(?![0-9٠-٩]))/g;
     const SKIP_TAGS = new Set(['SCRIPT', 'STYLE', 'NOSCRIPT', 'TEXTAREA', 'INPUT', 'HEAD', 'LINK', 'META']);
     const processed = new WeakSet();
     let badgeShown = false;
@@ -52,7 +52,7 @@
             position: fixed !important;
             bottom: 12px !important;
             right: 12px !important;
-            z-index:  !important;
+            z-index: !important;
             padding: 2px 8px !important;
             border-radius: 4px !important;
             border: 1px solid rgba(0,105,111,0.3) !important;
@@ -72,42 +72,144 @@
         return str.replace(/[\u200e\u200f\u202a-\u202e\u2066-\u2069]/g, '').replace(/[٠-٩]/g, d => ''.indexOf(d));
     }
 
-    function isTime(text) {
-        const norm = toEnglishNumerals(text.trim());
-        return /^\d{1,2}:\d{2}(?::\d{2})?$/.test(norm);
+    function isEmail(text) {
+        const str = text.trim();
+        if (str.includes(' ')) return false;
+        const parts = str.split('@');
+        if (parts.length !== 2) return false;
+        const local = parts[0];
+        const domain = parts[1];
+        if (!local || !domain) return false;
+        if (domain.includes('..') || domain.startsWith('.') || domain.endsWith('.')) return false;
+        const domainParts = domain.split('.');
+        if (domainParts.length < 2) return false;
+        const tld = domainParts[domainParts.length - 1];
+        return tld.length >= 2;
     }
 
     function isIP(text) {
         const norm = toEnglishNumerals(text.trim()).split(':')[0];
         const parts = norm.split('.');
         if (parts.length !== 4) return false;
-        return parts.every(p => {
+        for (let i = 0; i < 4; i++) {
+            const p = parts[i];
             if (!p || p.length > 3) return false;
+            for (let j = 0; j < p.length; j++) {
+                if (p[j] < '0' || p[j] > '9') return false;
+            }
             const n = parseInt(p, 10);
-            return !isNaN(n) && n >= 0 && n <= 255;
+            if (n < 0 || n > 255) return false;
+        }
+        return true;
+    }
+
+    function isPhone(text) {
+        const norm = toEnglishNumerals(text).trim();
+        let digits = '';
+        for (let i = 0; i < norm.length; i++) {
+            if (norm[i] >= '0' && norm[i] <= '9') digits += norm[i];
+        }
+        if (digits.length < 7 || digits.length > 15) return false;
+        if (norm.startsWith('+') || norm.startsWith('00')) return true;
+        
+        const prefixes = ['05', '01', '06', '07', '09', '966', '964', '90', '971', '965', '968', '973', '974', '962', '961', '20', '212', '213', '216', '218', '249', '967', '880'];
+        for (let i = 0; i < prefixes.length; i++) {
+            if (digits.startsWith(prefixes[i])) return true;
+        }
+        
+        if (digits.length >= 9 && digits.length <= 11) {
+            if (digits.startsWith('0') || ['1', '2', '3', '4', '5', '6', '7', '8', '9'].includes(digits[0])) return true;
+        }
+        
+        return false;
+    }
+
+    function isTime(text) {
+        const norm = toEnglishNumerals(text.trim());
+        const parts = norm.split(':');
+        if (parts.length !== 2 && parts.length !== 3) return false;
+        return parts.every((p, idx) => {
+            if (!p || p.length > 2) return false;
+            for (let i = 0; i < p.length; i++) {
+                if (p[i] < '0' || p[i] > '9') return false;
+            }
+            const val = parseInt(p, 10);
+            if (idx === 0) return val >= 0 && val <= 23;
+            return val >= 0 && val <= 59;
         });
     }
 
     function isDate(text) {
         const norm = toEnglishNumerals(text.trim());
-        if (/\b\d{4}[\s\-/.]\d{1,2}[\s\-/.]\d{1,2}\b/.test(norm) || 
-            /\b\d{1,2}[\s\-/.]\d{1,2}[\s\-/.]\d{4}\b/.test(norm)) {
-            return true;
+        let delimiter = '';
+        if (norm.includes('-')) delimiter = '-';
+        else if (norm.includes('/')) delimiter = '/';
+        else if (norm.includes('.')) delimiter = '.';
+        else if (norm.includes(' ')) delimiter = ' ';
+
+        if (delimiter) {
+            const parts = norm.split(delimiter);
+            if (parts.length === 3) {
+                const hasYear = parts.some(p => p.length === 4 && (p.startsWith('19') || p.startsWith('20') || p.startsWith('14')));
+                const validLengths = parts.every(p => p.length >= 1 && p.length <= 4);
+                if (hasYear && validLengths) return true;
+            }
         }
-        const digitsOnly = norm.replace(/[^0-9]/g, '');
-        if (digitsOnly.length === 6 || digitsOnly.length === 8) {
-            return /^(19|20|14)/.test(digitsOnly);
+        let digits = '';
+        for (let i = 0; i < norm.length; i++) {
+            if (norm[i] >= '0' && norm[i] <= '9') digits += norm[i];
+        }
+        if (digits.length === 6 || digits.length === 8) {
+            return digits.startsWith('19') || digits.startsWith('20') || digits.startsWith('14');
         }
         return false;
+    }
+
+    function shouldMask(val) {
+        if (val.includes('@')) return isEmail(val);
+        if (isIP(val)) return true;
+        if (isTime(val) || isDate(val)) return false;
+
+        const normVal = toEnglishNumerals(val).trim();
+
+        if (normVal.startsWith('+') || normVal.startsWith('00')) {
+            return isPhone(val);
+        }
+
+        if (normVal.includes('-')) {
+            const parts = normVal.split('-');
+            if (parts.length === 2) {
+                if (!isPhone(parts[0]) && !isPhone(parts[1])) return false;
+            }
+        }
+
+        if (normVal.includes('.') || normVal.includes('٫')) {
+            const parts = normVal.split(/[.٫]/);
+            if (parts.length === 2) return false;
+        }
+
+        return isPhone(val);
     }
 
     function hasTargetData(text) {
         if (!text) return false;
         if (text.includes('@')) return true;
         const norm = toEnglishNumerals(text);
-        if (/\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}/.test(norm)) return true;
-        const clean = norm.replace(/[\s\-().,،]/g, '');
-        return /[0-9]{7,}/.test(clean);
+        if (norm.includes('.')) {
+            const parts = norm.split('.');
+            if (parts.length >= 4) return true;
+        }
+        let count = 0;
+        for (let i = 0; i < norm.length; i++) {
+            const c = norm[i];
+            if (c >= '0' && c <= '9') {
+                count++;
+                if (count >= 7) return true;
+            } else if (c !== ' ' && c !== '-' && c !== '(' && c !== ')' && c !== '.' && c !== ',' && c !== '،') {
+                count = 0;
+            }
+        }
+        return false;
     }
 
     function maskAttributes(el) {
@@ -119,28 +221,7 @@
                     PATTERN.lastIndex = 0;
                     if (PATTERN.test(val)) {
                         PATTERN.lastIndex = 0;
-                        const masked = val.replace(PATTERN, (match) => {
-                            const normVal = toEnglishNumerals(match).trim();
-                            if (!match.includes('@') && !isIP(match)) {
-                                if (isTime(match) || isDate(match)) return match;
-                                if (/[\d٠-٩]+[.٫]\d+[\s\-]+[\d٠-٩]+[.٫]\d+/.test(normVal)) return match;
-                                if (!/^(05|01|06|07|09|00|\+|966|964|90|971|965|968|973|974|962|961|20|212|213|216|218|249|967|880)/.test(normVal)) {
-                                    const segments = normVal.split(/[\s\-]+/);
-                                    let isFinancialBypass = false;
-                                    for (let seg of segments) {
-                                        const cleanSeg = seg.replace(/[^0-9]/g, '');
-                                        if ((seg.includes('.') || seg.includes('٫') || cleanSeg.length >= 5)) {
-                                            isFinancialBypass = true;
-                                            break;
-                                        }
-                                    }
-                                    if (isFinancialBypass) return match;
-                                }
-                                const digitsOnly = normVal.replace(/[^0-9]/g, '');
-                                if (digitsOnly.length < 7) return match;
-                            }
-                            return '🔒';
-                        });
+                        const masked = val.replace(PATTERN, (match) => shouldMask(match) ? '🔒' : match);
                         if (val !== masked) {
                             el.setAttribute(attr, masked);
                         }
@@ -179,46 +260,8 @@
 
         while ((match = PATTERN.exec(text)) !== null) {
             const val = match[0];
-            const normVal = toEnglishNumerals(val).trim();
-
-            if (!val.includes('@') && !isIP(val)) {
-                if (isTime(val)) {
-                    continue;
-                }
-
-                if (/[\d٠-٩]+[.٫]\d+[\s\-]+[\d٠-٩]+[.٫]\d+/.test(normVal)) {
-                    continue;
-                }
-
-                if (!/^(05|01|06|07|09|00|\+|966|964|90|971|965|968|973|974|962|961|20|212|213|216|218|249|967|880)/.test(normVal)) {
-                    const segments = normVal.split(/[\s\-]+/);
-                    let isFinancialBypass = false;
-                    for (let seg of segments) {
-                        const cleanSeg = seg.replace(/[^0-9]/g, '');
-                        if ((seg.includes('.') || seg.includes('٫') || cleanSeg.length >= 5)) {
-                            isFinancialBypass = true;
-                            break;
-                        }
-                    }
-                    if (isFinancialBypass) {
-                        continue;
-                    }
-                }
-
-                if (val.includes('.')) {
-                    if (!/^(05|01|06|07|09|00|\+|966|964|90|971|965|968|973|974|962|961|20|212|213|216|218|249|967|880)/.test(normVal)) {
-                        continue;
-                    }
-                }
-
-                if (isDate(val)) {
-                    continue;
-                }
-
-                const digitsOnly = normVal.replace(/[^0-9]/g, '');
-                if (digitsOnly.length < 7) {
-                    continue;
-                }
+            if (!shouldMask(val)) {
+                continue;
             }
 
             found = true;
