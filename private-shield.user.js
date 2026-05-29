@@ -1,221 +1,145 @@
 // ==UserScript==
-// @name         🙈 YouTube Shield
-// @namespace    https://github.com/mooh971/tampermonkey-youtube-shield
-// @version      1.0.3
-// @description  Auto-blur YouTube thumbnails, titles, channel avatars on home page — subscriptions sidebar hidden everywhere
+// @name         🔒 Tampermonkey Private Shield
+// @namespace    https://github.com/mooh971/tampermonkey-private-shield
+// @version      1.0.1
+// @description  Auto-hide emails, phone numbers, and national IDs on any webpage
 // @author       mooh971
-// @match        *://www.youtube.com/*
+// @match        *://*/*
 // @grant        GM_addStyle
 // @run-at       document-start
-// @updateURL    https://raw.githubusercontent.com/mooh971/tampermonkey-youtube-shield/main/youtube-shield.user.js
-// @downloadURL  https://raw.githubusercontent.com/mooh971/tampermonkey-youtube-shield/main/youtube-shield.user.js
+// @updateURL    https://raw.githubusercontent.com/mooh971/tampermonkey-private-shield/main/private-shield.user.js
+// @downloadURL  https://raw.githubusercontent.com/mooh971/tampermonkey-private-shield/main/private-shield.user.js
 // ==/UserScript==
 
 (function () {
     'use strict';
 
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    //  State
+    //  Patterns
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-    let revealed  = false;
-    let hideTimer = null;
-
-    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    //  Subscriptions label — multi-language
-    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-    const SUBS_LABELS = new Set([
-        'Subscriptions',   // English
-        'الاشتراكات',      // Arabic
-        'Abonnements',     // French
-        'Abonnieren',      // German
-        'Suscripciones',   // Spanish
-        'Iscrizioni',      // Italian
-        'Inscrições',      // Portuguese
-        'Подписки',        // Russian
-        '訂閱',            // Chinese Traditional
-        '订阅',            // Chinese Simplified
-        '구독',            // Korean
-        'チャンネル登録',   // Japanese
-    ]);
-
-    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    //  Page check
-    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-    function isHomePage() {
-        return window.location.pathname === '/';
-    }
+    const PATTERN   = /([a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,})|(?:\+966\s?|0)(5\d[\s\-]?\d{3}[\s\-]?\d{4})|(?<!\d)([123]\d{9})(?!\d)/g;
+    const SKIP_TAGS = new Set(['SCRIPT', 'STYLE', 'NOSCRIPT', 'TEXTAREA', 'INPUT']);
+    const processed = new WeakSet();
+    let   badgeShown = false;
 
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     //  Styles
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
     GM_addStyle(`
-
-        /* ── Thumbnails — home page only ── */
-        body.yts-home div.ytThumbnailViewModelImage,
-        body.yts-home yt-thumbnail-view-model,
-        body.yts-home a.ytLockupViewModelContentImage,
-        body.yts-home ytd-thumbnail,
-        body.yts-home ytd-thumbnail img,
-        body.yts-home a#thumbnail,
-        body.yts-home #thumbnail img {
-            filter: blur(20px) brightness(0.4) !important;
-            transition: filter 0.3s ease !important;
-            border-radius: 10px !important;
-            overflow: hidden !important;
-        }
-
-        body.yts-home div.ytThumbnailViewModelImage:hover,
-        body.yts-home yt-thumbnail-view-model:hover,
-        body.yts-home a.ytLockupViewModelContentImage:hover,
-        body.yts-home ytd-thumbnail:hover,
-        body.yts-home a#thumbnail:hover {
-            filter: none !important;
-        }
-
-        /* ── Channel avatars — home page only ── */
-        body.yts-home yt-avatar-shape img.ytSpecAvatarShapeImage,
-        body.yts-home yt-decorated-avatar-view-model,
-        body.yts-home ytd-avatar-block-view-model {
-            filter: blur(10px) !important;
-            transition: filter 0.3s ease !important;
-        }
-
-        body.yts-home yt-avatar-shape img.ytSpecAvatarShapeImage:hover,
-        body.yts-home yt-decorated-avatar-view-model:hover,
-        body.yts-home ytd-avatar-block-view-model:hover {
-            filter: none !important;
-        }
-
-        /* ── Titles — home page only ── */
-        body.yts-home h3.ytLockupMetadataViewModelHeadingReset,
-        body.yts-home a.ytLockupMetadataViewModelTitle,
-        body.yts-home span.ytAttributedStringHost.ytAttributedStringWhiteSpacePreWrap,
-        body.yts-home #video-title,
-        body.yts-home yt-formatted-string#video-title,
-        body.yts-home a#video-title-link yt-formatted-string {
-            filter: blur(7px) !important;
-            transition: filter 0.3s ease !important;
+        .ps-hidden {
+            cursor: pointer !important;
+            display: inline-block !important;
+            padding: 0 4px !important;
+            border-radius: 4px !important;
+            border: 1px dashed rgba(0,105,111,0.5) !important;
+            background: rgba(0,105,111,0.08) !important;
+            color: transparent !important;
+            text-shadow: 0 0 6px rgba(0,0,0,0.55) !important;
             user-select: none !important;
         }
-
-        body.yts-home h3.ytLockupMetadataViewModelHeadingReset:hover,
-        body.yts-home a.ytLockupMetadataViewModelTitle:hover,
-        body.yts-home span.ytAttributedStringHost.ytAttributedStringWhiteSpacePreWrap:hover,
-        body.yts-home #video-title:hover,
-        body.yts-home a#video-title-link yt-formatted-string:hover {
-            filter: none !important;
+        .ps-visible {
+            cursor: pointer !important;
+            display: inline-block !important;
+            padding: 0 4px !important;
+            border-radius: 4px !important;
+            border: 1px solid rgba(0,105,111,0.5) !important;
+            background: rgba(0,105,111,0.06) !important;
+            color: #01696f !important;
+            font-weight: 600 !important;
         }
-
-        /* ── Subscriptions sidebar — ALL pages ── */
-        #yts-subs-section {
-            filter: blur(8px) !important;
-            transition: filter 0.3s ease !important;
-            user-select: none !important;
-            pointer-events: none !important;
-        }
-
-        #yts-subs-section:hover {
-            filter: none !important;
-            pointer-events: auto !important;
-        }
-
-        /* ── Reveal mode ── */
-        .yts-reveal body.yts-home div.ytThumbnailViewModelImage,
-        .yts-reveal body.yts-home yt-thumbnail-view-model,
-        .yts-reveal body.yts-home a.ytLockupViewModelContentImage,
-        .yts-reveal body.yts-home ytd-thumbnail,
-        .yts-reveal body.yts-home ytd-thumbnail img,
-        .yts-reveal body.yts-home a#thumbnail,
-        .yts-reveal body.yts-home #thumbnail img {
-            filter: none !important;
-            border-radius: 0 !important;
-        }
-
-        .yts-reveal body.yts-home yt-avatar-shape img.ytSpecAvatarShapeImage,
-        .yts-reveal body.yts-home yt-decorated-avatar-view-model,
-        .yts-reveal body.yts-home ytd-avatar-block-view-model {
-            filter: none !important;
-        }
-
-        .yts-reveal body.yts-home h3.ytLockupMetadataViewModelHeadingReset,
-        .yts-reveal body.yts-home a.ytLockupMetadataViewModelTitle,
-        .yts-reveal body.yts-home span.ytAttributedStringHost.ytAttributedStringWhiteSpacePreWrap,
-        .yts-reveal body.yts-home #video-title,
-        .yts-reveal body.yts-home yt-formatted-string#video-title,
-        .yts-reveal body.yts-home a#video-title-link yt-formatted-string {
-            filter: none !important;
-            user-select: auto !important;
-        }
-
-        .yts-reveal #yts-subs-section {
-            filter: none !important;
-            pointer-events: auto !important;
-            user-select: auto !important;
-        }
-
-        /* ── Badge ── */
-        #yts-badge {
+        #ps-badge {
             position: fixed !important;
             bottom: 12px !important;
-            left: 12px !important;
+            right: 12px !important;
             z-index: 2147483647 !important;
             padding: 2px 8px !important;
             border-radius: 4px !important;
-            border: 1px solid rgba(255, 70, 70, 0.3) !important;
+            border: 1px solid rgba(0,105,111,0.3) !important;
             background: transparent !important;
-            color: rgba(255, 70, 70, 0.6) !important;
+            color: rgba(0,105,111,0.6) !important;
             font-family: sans-serif !important;
             font-size: 10px !important;
             white-space: nowrap !important;
             cursor: pointer !important;
             transition: opacity 0.35s ease, transform 0.35s ease !important;
         }
-
-        #yts-badge:hover {
-            background: rgba(255, 70, 70, 0.08) !important;
-            color: #ff4d4d !important;
+        #ps-badge:hover {
+            background: rgba(0,105,111,0.08) !important;
+            color: #01696f !important;
         }
-
-        #yts-badge.yts-out {
+        #ps-badge.ps-out {
             opacity: 0 !important;
             transform: translateY(6px) !important;
             pointer-events: none !important;
         }
-
     `);
 
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    //  Subscriptions section handler
+    //  Core
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-    function markSubsSection() {
-        document.getElementById('yts-subs-section')?.removeAttribute('id');
+    function maskNode(node) {
+        if (processed.has(node)) return;
 
-        const sections = document.querySelectorAll('ytd-guide-section-renderer');
-        for (const section of sections) {
-            const firstItem = section.querySelector('ytd-guide-entry-renderer yt-formatted-string');
-            if (SUBS_LABELS.has(firstItem?.textContent.trim())) {
-                section.id = 'yts-subs-section';
-                break;
-            }
+        const text = node.textContent;
+        if (!text.includes('@') && !text.includes('05') && !text.includes('+966') && !/[123]\d{9}/.test(text)) return;
+
+        const parent = node.parentNode;
+        if (!parent) return;
+        if (processed.has(parent)) return;
+        if (parent.closest?.('.ps-hidden, .ps-visible')) return;
+        if (SKIP_TAGS.has(parent.tagName)) return;
+        if (parent.isContentEditable) return;
+
+        PATTERN.lastIndex = 0;
+        const frag = document.createDocumentFragment();
+        let last = 0, match, found = false;
+
+        while ((match = PATTERN.exec(text)) !== null) {
+            found = true;
+            if (match.index > last)
+                frag.appendChild(document.createTextNode(text.slice(last, match.index)));
+
+            const span = document.createElement('span');
+            span.className = 'ps-hidden';
+            span.textContent = match[0];
+            span.addEventListener('click', function (e) {
+                e.stopPropagation();
+                this.className = this.className === 'ps-hidden' ? 'ps-visible' : 'ps-hidden';
+                refreshBadge();
+            });
+            processed.add(span);
+            frag.appendChild(span);
+            last = match.index + match[0].length;
         }
+
+        if (!found) return;
+        if (last < text.length) frag.appendChild(document.createTextNode(text.slice(last)));
+
+        processed.add(node);
+        parent.replaceChild(frag, node);
     }
 
-    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    //  Page state manager
-    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    function scanRoot(root) {
+        if (!root?.querySelectorAll) return;
 
-    function updatePageState() {
-        if (isHomePage()) {
-            document.body.classList.add('yts-home');
-        } else {
-            document.body.classList.remove('yts-home');
-        }
-        markSubsSection();
+        const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+            acceptNode(n) {
+                const t = n.textContent;
+                if (!t.includes('@') && !t.includes('05') && !t.includes('+966') && !/[123]\d{9}/.test(t))
+                    return NodeFilter.FILTER_REJECT;
+                if (processed.has(n)) return NodeFilter.FILTER_REJECT;
+                if (SKIP_TAGS.has(n.parentElement?.tagName)) return NodeFilter.FILTER_REJECT;
+                if (n.parentElement?.isContentEditable) return NodeFilter.FILTER_REJECT;
+                return NodeFilter.FILTER_ACCEPT;
+            }
+        });
+
+        const nodes = [];
+        while (walker.nextNode()) nodes.push(walker.currentNode);
+        nodes.forEach(maskNode);
         refreshBadge();
     }
 
@@ -224,25 +148,26 @@
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
     function createBadge() {
-        if (document.getElementById('yts-badge')) return;
+        if (document.getElementById('ps-badge')) return;
 
         const badge = document.createElement('div');
-        badge.id = 'yts-badge';
+        badge.id = 'ps-badge';
 
+        let allVisible = false;
         badge.addEventListener('click', () => {
-            if (!isHomePage()) return;
-            revealed = !revealed;
-            document.documentElement.classList.toggle('yts-reveal', revealed);
+            allVisible = !allVisible;
+            document.querySelectorAll('.ps-hidden, .ps-visible')
+                .forEach(el => el.className = allVisible ? 'ps-visible' : 'ps-hidden');
             refreshBadge();
         });
 
         badge.addEventListener('mouseenter', () => {
-            clearTimeout(hideTimer);
-            badge.classList.remove('yts-out');
+            clearTimeout(window._psTimer);
+            badge.classList.remove('ps-out');
         });
 
         badge.addEventListener('mouseleave', () => {
-            hideTimer = setTimeout(() => badge.classList.add('yts-out'), 3000);
+            window._psTimer = setTimeout(() => badge.classList.add('ps-out'), 3000);
         });
 
         document.body.appendChild(badge);
@@ -250,50 +175,52 @@
     }
 
     function refreshBadge() {
-        const badge = document.getElementById('yts-badge');
+        const badge = document.getElementById('ps-badge');
         if (!badge) return;
 
-        if (!isHomePage()) {
-            badge.classList.add('yts-out');
-            return;
+        const total = document.querySelectorAll('.ps-hidden, .ps-visible').length;
+        badge.textContent = total ? `🔒 ${total} hidden` : '🔒 none';
+
+        if (!badgeShown) {
+            badge.classList.remove('ps-out');
+            clearTimeout(window._psTimer);
+            window._psTimer = setTimeout(() => {
+                badge.classList.add('ps-out');
+                badgeShown = true;
+            }, 3000);
         }
-
-        badge.textContent = revealed ? '👁 visible' : '🙈 hidden';
-        badge.classList.remove('yts-out');
-
-        clearTimeout(hideTimer);
-        hideTimer = setTimeout(() => badge.classList.add('yts-out'), 3000);
     }
 
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    //  Observer — catch sidebar when it loads
+    //  Observer
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-    const observer = new MutationObserver(() => {
-        if (!document.getElementById('yts-subs-section')) {
-            markSubsSection();
-        }
+    const observer = new MutationObserver(mutations => {
+        mutations.forEach(({ addedNodes, characterData, target }) => {
+            if (characterData && target.nodeType === Node.TEXT_NODE) {
+                maskNode(target);
+                return;
+            }
+            addedNodes.forEach(node => {
+                if (node.nodeType === Node.ELEMENT_NODE) scanRoot(node);
+                if (node.nodeType === Node.TEXT_NODE)    maskNode(node);
+            });
+        });
     });
 
-    observer.observe(document.documentElement, {
-        childList : true,
-        subtree   : true,
+    observer.observe(document.documentElement ?? document.body, {
+        childList     : true,
+        subtree       : true,
+        characterData : true
     });
-
-    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    //  SPA navigation listener
-    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-    window.addEventListener('yt-navigate-finish', updatePageState);
-    window.addEventListener('popstate', updatePageState);
 
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     //  Init
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
     function init() {
-        updatePageState();
         createBadge();
+        scanRoot(document.body);
     }
 
     if (document.readyState === 'loading') {
