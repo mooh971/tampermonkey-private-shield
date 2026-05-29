@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         🔒 Tampermonkey Private Shield
 // @namespace    https://github.com/mooh971/tampermonkey-private-shield
-// @version      1.0.8
+// @version      1.0.9
 // @description  Auto-hide emails and phone numbers on any webpage
 // @author       mooh971
 // @match        *://*/*
@@ -14,7 +14,7 @@
 (function () {
     'use strict';
 
-    const PATTERN = /([a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,})|((?<![0-9٠-٩])[0-9٠-٩]{1,3}\.[0-9٠-٩]{1,3}\.[0-9٠-٩]{1,3}\.[0-9٠-٩]{1,3}(?::[0-9٠-٩]{1,5})?(?![0-9٠-٩]))|((?<![0-9٠-٩])(?:\+|00|٠٠)?[ \u200e\u200f\u202a-\u202e]*[0-9٠-٩](?:[\s\-.()\u200e\u200f\u202a-\u202e]*[0-9٠-٩]){6,14}(?![0-9٠-٩]))/g;
+    const PATTERN = /([a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,})|((?<![0-9٠-٩])[0-9٠-٩]{1,3}\.[0-9٠-٩]{1,3}\.[0-9٠-٩]{1,3}\.[0-9٠-٩]{1,3}(?::[0-9٠-٩]{1,5})?(?![0-9٠-٩]))|((?<![0-9٠-٩])(?:\+|00|٠٠)?[ \u200e\u200f\u202a-\u202e\u2066-\u2069]*[0-9٠-٩](?:[\s\-.()\u200e\u200f\u202a-\u202e\u2066-\u2069]*[0-9٠-٩]){6,14}(?![0-9٠-٩]))/g;
     const SKIP_TAGS = new Set(['SCRIPT', 'STYLE', 'NOSCRIPT', 'TEXTAREA', 'INPUT', 'HEAD', 'LINK', 'META']);
     const processed = new WeakSet();
     let badgeShown = false;
@@ -69,7 +69,7 @@
     `);
 
     function toEnglishNumerals(str) {
-        return str.replace(/[\u200e\u200f\u202a-\u202e]/g, '').replace(/[٠-٩]/g, d => ''.indexOf(d));
+        return str.replace(/[\u200e\u200f\u202a-\u202e\u2066-\u2069]/g, '').replace(/[٠-٩]/g, d => ''.indexOf(d));
     }
 
     function isTime(text) {
@@ -88,6 +88,7 @@
         });
     }
 
+    // Zero tolerance typing used to enforce strict ISO/Hijri structures
     function isDate(text) {
         const norm = toEnglishNumerals(text.trim());
         if (/\b\d{4}[\s\-/.]\d{1,2}[\s\-/.]\d{1,2}\b/.test(norm) || 
@@ -147,6 +148,21 @@
 
                 if (/[\d٠-٩]+[.٫]\d+[\s\-]+[\d٠-٩]+[.٫]\d+/.test(normVal)) {
                     continue;
+                }
+
+                if (!/^(05|01|06|07|09|00|\+)/.test(normVal)) {
+                    const segments = normVal.split(/[\s\-]+/);
+                    let isFinancialBypass = false;
+                    for (let seg of segments) {
+                        const cleanSeg = seg.replace(/[^0-9]/g, '');
+                        if ((seg.includes('.') || seg.includes('٫') || cleanSeg.length >= 5)) {
+                            isFinancialBypass = true;
+                            break;
+                        }
+                    }
+                    if (isFinancialBypass) {
+                        continue;
+                    }
                 }
 
                 if (val.includes('.')) {
