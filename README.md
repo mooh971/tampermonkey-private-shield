@@ -19,6 +19,25 @@
 
 ## 📦 طريقة التثبيت
 
+
+### ⚠️ خطوة مهمة قبل التثبيت
+
+لازم تفعّل خيار **Allow User Scripts** في إعدادات Tampermonkey داخل المتصفح:
+
+### Chrome / Edge
+1. افتح المتصفح واذهب لـ `chrome://extensions`
+2. ابحث عن **Tampermonkey** واضغط **Details**
+3. فعّل خيار **Allow User Scripts**
+
+### Firefox
+1. افتح **Tampermonkey** من شريط الأدوات
+2. اذهب لـ **Settings** ← تبويب **Security**
+3. فعّل **Allow User Scripts**
+
+> ⚠️ بدون تفعيل هذا الخيار السكربت **لن يعمل**
+
+
+
 ### 1. ثبّت إضافة Tampermonkey
 
 | المتصفح | الرابط |
