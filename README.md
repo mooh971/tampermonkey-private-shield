@@ -61,7 +61,8 @@ Choose the official extension store for your browser:
 
 Click the professional shield button below to launch the automatic Tampermonkey installation portal:
 
-[![Deploy Script](https://img.shields.io/badge/📥_Deploy_Private_Shield-Click_To_Install-01696f?style=for-the-badge&logo=google-cloud-security&logoColor=white)](https://raw.githubusercontent.com/mooh971/tampermonkey-private-shield/main/private-shield.user.js)
+[![Install Script](https://img.shields.io/badge/📥_Install_Private_Shield-Click_To_Deploy-4bc51d?style=for-the-badge&logo=tampermonkey&logoColor=white)](https://raw.githubusercontent.com/mooh971/tampermonkey-private-shield/main/private-shield.user.js)
+
 
 ### 3️⃣ Step 3: Confirm Layout
 Click **Install** on the Tampermonkey prompt window. You are completely protected! ✅
