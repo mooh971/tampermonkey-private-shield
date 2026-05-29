@@ -13,8 +13,7 @@
 | Feature | Description |
 | :---: | :--- |
 | **🔒 Email Masking** | Instantly hides emails (e.g., `user@example.com`) |
-| **📱 Global Phone Patterns** | Comprehensive regex covering global & local formats (e.g., `+966...`, `05...`) |
-| **🪪 ID Enforcement** | Blocks National IDs and Iqamas (10-digit formats starting with 1, 2, or 3) |
+| **📱 Global Phone Patterns** | Comprehensive regex covering global & local formats (e.g., `+1...`, `(212)...`) |
 | **⚡ Instant Execution** | Runs at `document-start` before private data can even render |
 | **🔄 SPA Ready** | Fully compatible with dynamic frameworks (Next.js, React, Vue, etc.) |
 | **👆 Precision Control** | Click any specific hidden element to toggle exposure cleanly |
