@@ -19,6 +19,7 @@
 | :---: | :--- |
 | **🔒 Email Masking** | Instantly hides emails (e.g., `user@example.com`) |
 | **📱 Global Phone Patterns** | Comprehensive regex covering global & local formats (e.g., `+1...`, `(212)...`) |
+| **🌐 IP Address Blocker** | Automatically detects and masks IPv4 and IPv6 addresses (e.g., `192.168.1.1`, `2001:db8::`) |
 | **⚡ Instant Execution** | Runs at `document-start` before private data can even render |
 | **🔄 SPA Ready** | Fully compatible with dynamic frameworks (Next.js, React, Vue, etc.) |
 | **👆 Precision Control** | Click any specific hidden element to toggle exposure cleanly |
@@ -78,6 +79,7 @@ Click **Install** on the Tampermonkey prompt window. You are completely protecte
 | **Click Revealed Text** | Re-hides the item back into its protected shield state. |
 | **Click 🔒 Badge** | Global Master Toggle (Reveal All Data / Mask All Data). |
 | **Hover Over Badge** | Elegantly slides out the counter to show exact totals. |
+| | |
 
 ---
 
