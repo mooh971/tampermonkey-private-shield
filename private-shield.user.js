@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         🔒 Tampermonkey Private Shield
 // @namespace    https://github.com/mooh971/tampermonkey-private-shield
-// @version      1.0.5
+// @version      1.0.6
 // @description  Auto-hide emails and phone numbers on any webpage
 // @author       mooh971
 // @match        *://*/*
@@ -78,17 +78,22 @@
         return /^\d{1,2}:\d{2}(?::\d{2})?$/.test(norm);
     }
 
+    function isDecimal(text) {
+        const norm = toEnglishNumerals(text.trim());
+        return /^\d+[.٫]\d+$/.test(norm);
+    }
+
     function isIP(text) {
         const norm = toEnglishNumerals(text.trim()).split(':')[0];
         const parts = norm.split('.');
         if (parts.length !== 4) return false;
         return parts.every(p => {
+            if (!p || p.length > 3) return false;
             const n = parseInt(p, 10);
             return !isNaN(n) && n >= 0 && n <= 255;
         });
     }
 
-    // Explicitly bypass standard 3-segment dates
     function isDate(text) {
         const norm = toEnglishNumerals(text.trim());
         if (/\b\d{4}[\s\-/.]\d{1,2}[\s\-/.]\d{1,2}\b/.test(norm) || 
@@ -96,7 +101,7 @@
             return true;
         }
         const digitsOnly = norm.replace(/[^0-9]/g, '');
-        if (digitsOnly.length === 8 || digitsOnly.length === 10) {
+        if (digitsOnly.length === 6 || digitsOnly.length === 8) {
             return /^(19|20|14)/.test(digitsOnly);
         }
         return false;
@@ -141,16 +146,18 @@
             const val = match[0];
             const normVal = toEnglishNumerals(val).trim();
 
-            if (!val.includes('@')) {
+            if (val.includes('@')) {
+                // Emails are always masked
+            } else if (isIP(val)) {
+                // Valid IPv4 blocks are always masked directly
+            } else {
                 if (isTime(val)) {
                     continue;
                 }
 
-                if (val.includes('.')) {
-                    if (!isIP(val)) {
-                        if (!/^(05|01|06|07|09|00|\+)/.test(normVal)) {
-                            continue;
-                        }
+                if (isDecimal(val)) {
+                    if (!/^(05|01|06|07|09|00|\+)/.test(normVal)) {
+                        continue;
                     }
                 }
 
