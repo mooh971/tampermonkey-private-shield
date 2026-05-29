@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         🔒 Tampermonkey Private Shield
 // @namespace    https://github.com/mooh971/tampermonkey-private-shield
-// @version      1.0.1
+// @version      1.0.2
 // @description  Auto-hide emails, phone numbers, and national IDs on any webpage
 // @author       mooh971
 // @match        *://*/*
