@@ -17,7 +17,7 @@
 
 ---
 
-## ⚡ Fast Installation
+## ⚡ Installation
 
 ### 1️⃣ Install Tampermonkey Extension
 *Click your browser button below to get the extension instantly:*
