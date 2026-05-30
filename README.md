@@ -9,7 +9,7 @@
 ---
 
 ### 📷 Live Demo
-<img src="https://raw.githubusercontent.com/mooh971/tampermonkey-private-shield/main/test.gif" width="600" alt="Private Shield Demo" />
+<video src="https://github.com/user-attachments/assets/0a62c929-9b04-4dd6-a955-a26f991a9fd1" width="100%" controls autoplay muted loop></video>
 
 ---
 
