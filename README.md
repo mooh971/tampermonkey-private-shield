@@ -1,86 +1,49 @@
-<div align="center">
-
 # 🔒 Tampermonkey Private Shield
 
-**A premium, lightweight userscript specifically built for anyone sharing their screen or live streaming.** *Instantly masks your sensitive personal data on the fly to prevent accidental leaks to your audience.*
+**A lightweight userscript built to keep your data safe from nosy onlookers, Discord streams, and live broadcasts on YouTube or Twitch.** *Instantly masks your private info on the fly to make your screen snooper-proof.*
 
-> 💡 **Designed for Content Creators & Professionals:** Whether you are live streaming on Twitch/YouTube, recording tutorials, or presenting on Zoom/Teams, this shield ensures your private data stays private.
+> 💡 **Snooper-Proof Your Screen:** Whether you are screensharing with friends on Discord, broadcasting live on Twitch and YouTube, or coding in public spaces where people look over your shoulder.
+
+---
+
+## ⚡ Fast Installation
+
+### 1️⃣ Install Tampermonkey Extension
+*Click your browser button below to get the extension instantly:*
+
+[![Chrome](https://img.shields.io/badge/Chrome-Download-blue?style=for-the-badge&logo=google-chrome&logoColor=white)](https://chrome.google.com/webstore/detail/tampermonkey/dhdgffkkebhmkfjojejmpbldmpobfkfo)
+[![Edge](https://img.shields.io/badge/Edge-Download-purple?style=for-the-badge&logo=microsoftedge&logoColor=white)](https://microsoftedge.microsoft.com/addons/detail/tampermonkey/iikmkjmpaadaobahmlepeloendndfphd)
+[![Firefox](https://img.shields.io/badge/Firefox-Download-orange?style=for-the-badge&logo=firefox-browser&logoColor=white)](https://addons.mozilla.org/firefox/addon/tampermonkey/)
+[![Brave](https://img.shields.io/badge/Brave-Download-orange?style=for-the-badge&logo=brave&logoColor=white)](https://chrome.google.com/webstore/detail/tampermonkey/dhdgffkkebhmkfjojejmpbldmpobfkfo)
+[![Opera](https://img.shields.io/badge/Opera-Download-red?style=for-the-badge&logo=opera&logoColor=white)](https://addons.opera.com/extensions/details/tampermonkey-beta/)
+
+### 2️⃣ Install the Userscript
+*Click the green button below and hit **Install** on the prompt window:*
+
+[![Install Script](https://img.shields.io/badge/📥_Click_To_Install_Private_Shield-4bc51d?style=for-the-badge&font-weight=bold&logo=tampermonkey&logoColor=white)](https://raw.githubusercontent.com/mooh971/tampermonkey-private-shield/main/private-shield.user.js)
+
+### 3️⃣ Required Browser Setting ⚠️
+*You must enable this setting for the extension to allow the shield to run:*
+
+* **Chromium (Chrome / Edge / Brave / Opera):**  
+  Go to `chrome://extensions` ➡️ **Tampermonkey Details** ➡️ Toggle **ON** `Allow access to file URLs`.
+* **Firefox:**  
+  Click **Tampermonkey Icon** ➡️ **Dashboard** ➡️ **Settings** ➡️ Check `Allow User Scripts`.
 
 ---
 
 ### 📷 Live Demo
-<video src="https://github.com/user-attachments/assets/0a62c929-9b04-4dd6-a955-a26f991a9fd1" width="100%" controls autoplay muted loop></video>
-
----
-
-### ✨ Key Features
-
-| Feature | Description |
-| :---: | :--- |
-| **🔒 Email Masking** | Instantly hides emails (e.g., `user@example.com`) |
-| **📱 Global Phone Patterns** | Comprehensive regex covering global & local formats (e.g., `+1...`, `(212)...`) |
-| **🌐 IP Address Blocker** | Automatically detects and masks IPv4 and IPv6 addresses (e.g., `192.168.1.1`, `2001:db8::`) |
-| **⚡ Instant Execution** | Runs at `document-start` before private data can even render |
-| **🔄 SPA Ready** | Fully compatible with dynamic frameworks (Next.js, React, Vue, etc.) |
-| **👆 Precision Control** | Click any specific hidden element to toggle exposure cleanly |
-| **🏷️ Smart Counter Badge** | Discreet floating badge in the bottom-right displaying blocked counts |
-
----
-
-## 📦 Installation Guide
-
-### ⚠️ Critical Step Before Setup
-To allow the script to execute seamlessly, you must toggle **Allow User Scripts** inside your browser's extension settings.
-
-</div>
-
-#### 🌐 🌍 Chrome / Edge / Brave / Opera
-1. Navigate to `chrome://extensions` (or `opera://extensions` / `brave://extensions`) in your address bar.
-2. Locate the **Tampermonkey** card and click **Details**.
-3. Toggle **ON** the **Allow access to file URLs** option (or *Allow User Scripts*).
-
-#### 🦊 Firefox
-1. Click the **Tampermonkey** icon in your extension toolbar.
-2. Open the **Dashboard** and navigate to **Settings**.
-3. Under the **Security** tab, check the box for **Allow User Scripts**.
-
----
-
 <div align="center">
-
-### 1️⃣ Step 1: Get the Extension
-
-Choose the official extension store for your browser:
-
-[![Chrome](https://img.shields.io/badge/Google_Chrome-Download-blue?style=for-the-badge&logo=google-chrome&logoColor=white)](https://chrome.google.com/webstore/detail/tampermonkey/dhdgffkkebhmkfjojejmpbldmpobfkfo)
-[![Edge](https://img.shields.io/badge/Microsoft__Edge-Download-purple?style=for-the-badge&logo=microsoftedge&logoColor=white)](https://microsoftedge.microsoft.com/addons/detail/tampermonkey/iikmkjmpaadaobahmlepeloendndfphd)
-[![Firefox](https://img.shields.io/badge/Mozilla_Firefox-Download-orange?style=for-the-badge&logo=firefox-browser&logoColor=white)](https://addons.mozilla.org/firefox/addon/tampermonkey/)
-[![Opera](https://img.shields.io/badge/Opera-Download-red?style=for-the-badge&logo=opera&logoColor=white)](https://addons.opera.com/extensions/details/tampermonkey-beta/)
-[![Brave](https://img.shields.io/badge/Brave-Download-orange?style=for-the-badge&logo=brave&logoColor=white)](https://chrome.google.com/webstore/detail/tampermonkey/dhdgffkkebhmkfjojejmpbldmpobfkfo)
-
-### 2️⃣ Step 2: Deploy the Script
-
-Click the professional shield button below to launch the automatic Tampermonkey installation portal:
-
-[![Install Script](https://img.shields.io/badge/📥_Install_Private_Shield-Click_To_Deploy-4bc51d?style=for-the-badge&logo=tampermonkey&logoColor=white)](https://raw.githubusercontent.com/mooh971/tampermonkey-private-shield/main/private-shield.user.js)
-
-
-### 3️⃣ Step 3: Confirm Layout
-Click **Install** on the Tampermonkey prompt window. You are completely protected! ✅
-
----
-
-## 🚀 Interactive Controls
-
-| Action | Result |
-| :--- | :--- |
-| **Load Webpage** | Automatic scanning and masking occurs instantly. |
-| **Click Hidden Box** | Temporarily reveals the specific targeted element. |
-| **Click Revealed Text** | Re-hides the item back into its protected shield state. |
-| **Click 🔒 Badge** | Global Master Toggle (Reveal All Data / Mask All Data). |
-| **Hover Over Badge** | Elegantly slides out the counter to show exact totals. |
-| | |
-
----
-
+  <video src="https://github.com/user-attachments/assets/0a62c929-9b04-4dd6-a955-a26f991a9fd1" width="550" style="max-width: 100%; border-radius: 8px; border: 1px solid #334155;" controls autoplay muted loop></video>
 </div>
+
+---
+
+## ✨ Key Features
+
+* **🔒 Hide Emails:** Instantly hides all email addresses from your screen.
+* **📱 Hide Phone Numbers:** Automatically blocks phone numbers to prevent leaks.
+* **🌐 Hide IPs:** Securely masks network IP addresses on the fly.
+* **⚡ Zero Delay:** Runs instantly before any private data can appear.
+* **👆 Quick Click:** Click any hidden element to easily reveal or re-hide it.
+* **🏷️ Counter Badge:** A small floating badge showing the number of blocked items.
