@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         🔒 Tampermonkey Private Shield
 // @namespace    https://github.com/mooh971/tampermonkey-private-shield
-// @version      1.1.0
+// @version      1.1.1
 // @description  Auto-hide emails and phone numbers on any webpage
 // @author       mooh971
 // @match        *://*/*
@@ -14,7 +14,7 @@
 (function () {
     'use strict';
 
-    const PATTERN = /([^\s,،<>]+@[^\s,،<>]+)|((?<![0-9٠-٩])[0-9٠-٩]{1,3}\.[0-9٠-٩]{1,3}\.[0-9٠-٩]{1,3}\.[0-9٠-٩]{1,3}(?::[0-9٠-٩]{1,5})?(?![0-9٠-٩]))|((?<![0-9٠-٩.,٫])(?:\+|00|٠٠)?[ \u200e\u200f\u202a-\u202e\u2066-\u2069]*[0-9٠-٩](?:[ \t\-.()\u200e\u200f\u202a-\u202e\u2066-\u2069]*[0-9٠-٩]){6,14}(?![0-9٠-٩]))/g;
+    const PATTERN = /([^\s,،<>]+@[^\s,،<>]+)|((?<![0-9٠-٩۰-۹.,٫])[0-9٠-٩۰-۹]{1,3}\.[0-9٠-٩۰-۹]{1,3}\.[0-9٠-٩۰-۹]{1,3}\.[0-9٠-٩۰-۹]{1,3}(?::[0-9٠-٩۰-۹]{1,5})?(?![0-9٠-٩۰-۹.,٫]))|((?<![0-9٠-٩۰-۹.,٫])(?:\+|00|٠٠)?[ \u200e\u200f\u202a-\u202e\u2066-\u2069\u200c\u200d]*[0-9٠-٩۰-۹](?:[ \t\-.()\u200e\u200f\u202a-\u202e\u2066-\u2069\u200c\u200d]{0,2}[0-9٠-٩۰-۹]){6,14}(?![0-9٠-٩۰-۹]))/g;
     const SKIP_TAGS = new Set(['SCRIPT', 'STYLE', 'NOSCRIPT', 'TEXTAREA', 'INPUT', 'HEAD', 'LINK', 'META']);
     const processed = new WeakSet();
     let badgeShown = false;
@@ -52,7 +52,7 @@
             position: fixed !important;
             bottom: 12px !important;
             right: 12px !important;
-            z-index: !important;
+            z-index: 2147483647 !important;
             padding: 2px 8px !important;
             border-radius: 4px !important;
             border: 1px solid rgba(0,105,111,0.3) !important;
@@ -69,7 +69,10 @@
     `);
 
     function toEnglishNumerals(str) {
-        return str.replace(/[\u200e\u200f\u202a-\u202e\u2066-\u2069]/g, '').replace(/[٠-٩]/g, d => ''.indexOf(d));
+        return str
+            .replace(/[\u200e\u200f\u202a-\u202e\u2066-\u2069\u200c\u200d]/g, '')
+            .replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d))
+            .replace(/[۰-۹]/g, d => '۰۱۲۳۴۵۶۷۸۹'.indexOf(d));
     }
 
     function isEmail(text) {
@@ -83,8 +86,7 @@
         if (domain.includes('..') || domain.startsWith('.') || domain.endsWith('.')) return false;
         const domainParts = domain.split('.');
         if (domainParts.length < 2) return false;
-        const tld = domainParts[domainParts.length - 1];
-        return tld.length >= 2;
+        return domainParts[domainParts.length - 1].length >= 2;
     }
 
     function isIP(text) {
@@ -110,17 +112,41 @@
             if (norm[i] >= '0' && norm[i] <= '9') digits += norm[i];
         }
         if (digits.length < 7 || digits.length > 15) return false;
-        if (norm.startsWith('+') || norm.startsWith('00')) return true;
-        
-        const prefixes = ['05', '01', '06', '07', '09', '966', '964', '90', '971', '965', '968', '973', '974', '962', '961', '20', '212', '213', '216', '218', '249', '967', '880'];
-        for (let i = 0; i < prefixes.length; i++) {
-            if (digits.startsWith(prefixes[i])) return true;
+
+        if (norm.startsWith('+')) {
+            return (digits.length >= 9 && digits.length <= 15);
         }
-        
-        if (digits.length >= 9 && digits.length <= 11) {
-            if (digits.startsWith('0') || ['1', '2', '3', '4', '5', '6', '7', '8', '9'].includes(digits[0])) return true;
+        if (norm.startsWith('00')) {
+            if (digits.startsWith('000')) return false;
+            return (digits.length >= 11 && digits.length <= 15);
         }
-        
+
+        if (digits.startsWith('1')) {
+            return digits.length === 11;
+        }
+
+        const countryCodes = ['20', '33', '44', '49', '90', '98', '961', '962', '964', '965', '966', '967', '968', '971', '973', '974', '212', '213', '216', '218', '249', '880'];
+        for (let i = 0; i < countryCodes.length; i++) {
+            if (digits.startsWith(countryCodes[i])) {
+                if (digits.length >= 11 && digits.length <= 14) return true;
+            }
+        }
+
+        const localPrefixes = ['05', '01', '06', '07', '09'];
+        for (let i = 0; i < localPrefixes.length; i++) {
+            if (digits.startsWith(localPrefixes[i])) {
+                return (digits.length >= 9 && digits.length <= 12);
+            }
+        }
+
+        if (digits.length >= 9 && digits.length <= 10) {
+            if (['2', '3', '4', '5', '6', '7', '8', '9'].includes(digits[0])) return true;
+        }
+
+        if (digits.length >= 11 && digits.length <= 12) {
+            if (digits.startsWith('0') || ['2', '3', '6', '7', '8', '9'].includes(digits[0])) return true;
+        }
+
         return false;
     }
 
@@ -141,11 +167,11 @@
 
     function isDate(text) {
         const norm = toEnglishNumerals(text.trim());
+
         let delimiter = '';
         if (norm.includes('-')) delimiter = '-';
         else if (norm.includes('/')) delimiter = '/';
         else if (norm.includes('.')) delimiter = '.';
-        else if (norm.includes(' ')) delimiter = ' ';
 
         if (delimiter) {
             const parts = norm.split(delimiter);
@@ -155,13 +181,27 @@
                 if (hasYear && validLengths) return true;
             }
         }
+
         let digits = '';
         for (let i = 0; i < norm.length; i++) {
             if (norm[i] >= '0' && norm[i] <= '9') digits += norm[i];
         }
-        if (digits.length === 6 || digits.length === 8) {
-            return digits.startsWith('19') || digits.startsWith('20') || digits.startsWith('14');
+
+        if (digits.length === 8) {
+            const y = parseInt(digits.slice(0, 4), 10);
+            const m = parseInt(digits.slice(4, 6), 10);
+            const d = parseInt(digits.slice(6, 8), 10);
+            if (((y >= 1900 && y <= 2099) || (y >= 1300 && y <= 1499)) && (m >= 1 && m <= 12) && (d >= 1 && d <= 31)) return true;
         }
+
+        if (digits.length === 10) {
+            const y = parseInt(digits.slice(0, 4), 10);
+            const m = parseInt(digits.slice(4, 6), 10);
+            const d = parseInt(digits.slice(6, 8), 10);
+            const h = parseInt(digits.slice(8, 10), 10);
+            if (((y >= 1900 && y <= 2099) || (y >= 1300 && y <= 1499)) && (m >= 1 && m <= 12) && (d >= 1 && d <= 31) && (h >= 0 && h <= 23)) return true;
+        }
+
         return false;
     }
 
@@ -172,20 +212,18 @@
 
         const normVal = toEnglishNumerals(val).trim();
 
-        if (normVal.startsWith('+') || normVal.startsWith('00')) {
-            return isPhone(val);
-        }
+        if (normVal.includes('.') && normVal.includes('-')) return false;
+        if (normVal.includes('/')) return false;
 
-        if (normVal.includes('-')) {
-            const parts = normVal.split('-');
-            if (parts.length === 2) {
-                if (!isPhone(parts[0]) && !isPhone(parts[1])) return false;
-            }
-        }
-
-        if (normVal.includes('.') || normVal.includes('٫')) {
-            const parts = normVal.split(/[.٫]/);
+        if (normVal.includes('.')) {
+            const parts = normVal.split('.');
             if (parts.length === 2) return false;
+
+            if (parts.length > 2) {
+                if (parts[0].length === 1 && (parts[0] === '0' || parts[0] === '1')) return false;
+            }
+
+            if (parts[parts.length - 1].replace(/[^0-9]/g, '').length > 4) return false;
         }
 
         return isPhone(val);
@@ -236,8 +274,8 @@
             element.removeAttribute('title');
             const nestedWrapper = element.querySelector('.ssb-blur-wrapper');
             if (nestedWrapper) {
-                element.innerHTML = ''; 
-                element.textContent = nestedWrapper.textContent; 
+                element.innerHTML = '';
+                element.textContent = nestedWrapper.textContent;
             }
         } else {
             element.setAttribute('title', tooltipText);
@@ -273,7 +311,7 @@
             span.className = 'ps-hidden';
             span.setAttribute('title', tooltipText);
             span.textContent = val;
-            
+
             span.addEventListener('click', (e) => {
                 e.preventDefault();
                 e.stopPropagation();
@@ -358,7 +396,7 @@
         if (!badge) return;
 
         const total = document.querySelectorAll('.ps-hidden, .ps-visible').length;
-        badge.textContent = total ? `🔒 ${total} hidden` : '🔒 none';
+        badge.textContent = total ? '🔒 ' + total + ' hidden' : '🔒 none';
 
         if (!badgeShown) {
             badge.classList.remove('ps-out');
