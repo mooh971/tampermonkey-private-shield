@@ -6,6 +6,17 @@
 
 ---
 
+## ✨ Key Features
+
+* **🔒 Hide Emails:** Instantly hides all email addresses from your screen.
+* **📱 Hide Phone Numbers:** Automatically blocks phone numbers to prevent leaks.
+* **🌐 Hide IPs:** Securely masks network IP addresses on the fly.
+* **⚡ Zero Delay:** Runs instantly before any private data can appear.
+* **👆 Quick Click:** Click any hidden element to easily reveal or re-hide it.
+* **🏷️ Counter Badge:** A small floating badge showing the number of blocked items.
+
+---
+
 ## ⚡ Fast Installation
 
 ### 1️⃣ Install Tampermonkey Extension
@@ -36,14 +47,3 @@
 <div align="center">
   <video src="https://github.com/user-attachments/assets/0a62c929-9b04-4dd6-a955-a26f991a9fd1" width="550" style="max-width: 100%; border-radius: 8px; border: 1px solid #334155;" controls autoplay muted loop></video>
 </div>
-
----
-
-## ✨ Key Features
-
-* **🔒 Hide Emails:** Instantly hides all email addresses from your screen.
-* **📱 Hide Phone Numbers:** Automatically blocks phone numbers to prevent leaks.
-* **🌐 Hide IPs:** Securely masks network IP addresses on the fly.
-* **⚡ Zero Delay:** Runs instantly before any private data can appear.
-* **👆 Quick Click:** Click any hidden element to easily reveal or re-hide it.
-* **🏷️ Counter Badge:** A small floating badge showing the number of blocked items.
