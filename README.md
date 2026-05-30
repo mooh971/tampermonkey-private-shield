@@ -1,8 +1,8 @@
 # 🔒 Tampermonkey Private Shield
 
-**A lightweight userscript built to keep your data safe from nosy onlookers, Discord streams, and live broadcasts on YouTube or Twitch.** *Instantly masks your private info on the fly to make your screen snooper-proof.*
+**A lightweight userscript built to keep your data safe during everyday browsing, Discord streams, and live broadcasts on YouTube or Twitch.** *Instantly masks your private info on the fly to make your screen snooper-proof.*
 
-> 💡 **Snooper-Proof Your Screen:** Whether you are screensharing with friends on Discord, broadcasting live on Twitch and YouTube, or coding in public spaces where people look over your shoulder.
+> 💡 **Snooper-Proof Your Screen:** Whether you are just browsing the web daily, screensharing with friends on Discord, broadcasting live on Twitch and YouTube, or coding in public spaces where people look over your shoulder.
 
 ---
 
@@ -17,7 +17,7 @@
 
 ---
 
-## ⚡ Installation
+## ⚡Installation
 
 ### 1️⃣ Install Tampermonkey Extension
 *Click your browser button below to get the extension instantly:*
