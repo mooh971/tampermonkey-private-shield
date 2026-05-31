@@ -292,7 +292,7 @@
         const domainParts = domain.split('.');
         if (domainParts.length < 2) return false;
 
-        const tld = domainParts.at(-1);
+        const tld = domainParts[domainParts.length - 1];
         if (tld.length < 2) return false;
         for (let i = 0; i < tld.length; i++) {
             const code = tld.charCodeAt(i);
