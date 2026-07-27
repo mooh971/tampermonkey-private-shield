@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Tampermonkey Private Shield
 // @namespace    https://github.com/mooh971/tampermonkey-private-shield
-// @version      1.5.1
-// @description  Auto-hide emails, phone numbers, IPs on any webpage during screensharing
+// @version      1.6.0
+// @description  Auto-hide emails, phone numbers, IPs, and national IDs on any webpage during screensharing
 // @author       mooh971
 // @match        *://*/*
 // @grant        GM_addStyle
@@ -25,11 +25,12 @@
     const regexes = {
         emails: /[\p{L}\p{N}._%+-]+@[\p{L}\p{N}.-]+\.\p{L}+/u,
         phones: /(?<![\p{Nd}.,٫])(?:\([\p{Cf} \t]*)?(?:(?:\+|00|٠٠|۰۰)[\p{Cf} \t]*)?\p{Nd}(?:(?:[ \t\-()\[\p{Cf}]{0,2}|\.)\p{Nd}){6,14}(?!\p{Nd})/u,
-        ips: /(?<![\p{Nd}.,٫])(?:::(?:[fF]{4}:(?:0:)?)?)?\p{Nd}{1,3}(?:[\p{Cf} \t]*\.[\p{Cf} \t]*\p{Nd}{1,3}){3}(?::\p{Nd}{1,5})?(?![\p{Nd}.,٫])|(?<![a-zA-Z0-9])(?:\[?)(?::(?::[0-9a-fA-F]{1,4}){1,7}|[0-9a-fA-F]{1,4}(?::[0-9a-fA-F]{0,4}){2,})(?:%[\w.\-]+)?(?:\])?(?::\d{1,5})?(?![a-zA-Z0-9])/u
+        ips: /(?<![\p{Nd}.,٫])(?:::(?:[fF]{4}:(?:0:)?)?)?\p{Nd}{1,3}(?:[\p{Cf} \t]*\.[\p{Cf} \t]*\p{Nd}{1,3}){3}(?::\p{Nd}{1,5})?(?![\p{Nd}.,٫])|(?<![a-zA-Z0-9])(?:\[?)(?::(?::[0-9a-fA-F]{1,4}){1,7}|[0-9a-fA-F]{1,4}(?::[0-9a-fA-F]{0,4}){2,})(?:%[\w.\-]+)?(?:\])?(?::\d{1,5})?(?![a-zA-Z0-9])/u,
+        nationalIds: /(?<![\p{Nd}.,٫])\p{Nd}{10}(?!\p{Nd})/u
     };
 
     const PATTERN = new RegExp(
-        `${regexes.emails.source}|${regexes.ips.source}|${regexes.phones.source}`,
+        `${regexes.emails.source}|${regexes.ips.source}|${regexes.phones.source}|${regexes.nationalIds.source}`,
         "gu"
     );
 
@@ -95,6 +96,7 @@
             maskEmails: GM_getValue("maskEmails", true),
             maskPhones: GM_getValue("maskPhones", true),
             maskIPs: GM_getValue("maskIPs", true),
+            maskNationalIDs: GM_getValue("maskNationalIDs", true),
             whitelistedSites: GM_getValue("whitelistedSites", ""),
         });
     }
@@ -130,12 +132,12 @@
 
     // Core Orchestration & DOM Observer
     function init() {
-        if (isSiteWhitelisted()) {
+        if (isCloudflareChallenge() || isSiteWhitelisted()) {
             return;
         }
         createBadge();
-        scanRoot(document.body);
         setupObserver();
+        scanRoot(document.body || document.documentElement);
         if (typeof GM_registerMenuCommand !== "undefined") {
             GM_registerMenuCommand("Private Shield Settings", showSettings, {
                 accessKey: "p",
@@ -146,6 +148,9 @@
     }
 
     function setupObserver() {
+        if (globalObserver || isSiteWhitelisted()) {
+            return;
+        }
         const observerConfig = {
             childList: true,
             subtree: true,
@@ -388,15 +393,6 @@
             span.setAttribute("data-dummy", generateDummyText(val));
             span.textContent = span.getAttribute("data-dummy");
 
-            span.addEventListener("click", (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                const isHidden = span.className === "ps-hidden";
-                span.className = isHidden ? "ps-visible" : "ps-hidden";
-                toggleElementMask(span, isHidden);
-                refreshBadge();
-            });
-
             processed.add(span);
             frag.appendChild(span);
             last = match.index + val.length;
@@ -477,6 +473,10 @@
         }
         if (isTime(val) || isDate(val)) {
             return false;
+        }
+
+        if (isNationalID(val)) {
+            return settings.maskNationalIDs;
         }
 
         const normalizedPhone = toEnglishNumerals(val).trim();
@@ -634,6 +634,16 @@
         return false;
     }
 
+    function isNationalID(text) {
+        const normalized = toEnglishNumerals(text).trim();
+        const digits = normalized.replace(/\D/g, "");
+        if (digits.length !== 10) {
+            return false;
+        }
+        const firstTwo = parseInt(digits.slice(0, 2), 10);
+        return firstTwo >= 10 && firstTwo <= 30;
+    }
+
     function isIP(text) {
         let norm = toEnglishNumerals(text.replace(/\s+/g, "")).split(":")[0];
         if (norm.toLowerCase().startsWith("::ffff:")) {
@@ -727,17 +737,13 @@
         );
     }
 
+    const FAST_TARGET_RE = /@|(?:[0-9][\s\-()+,،]*){7}|\..*\..*\.|:.*:/;
+
     function hasTargetData(text) {
-        if (!text) {
+        if (!text || text.length < 5) {
             return false;
         }
-        const cleanText = toEnglishNumerals(text);
-        return (
-            cleanText.includes("@") ||
-            /(?:[0-9][\s\-()+,،]*){7}/.test(cleanText) ||
-            (cleanText.match(/\./g) || []).length >= 3 ||
-            (cleanText.match(/:/g) || []).length >= 2
-        );
+        return FAST_TARGET_RE.test(toEnglishNumerals(text));
     }
 
     // UI & Settings Panel
@@ -835,6 +841,10 @@
                     <span>Mask IP addresses</span>
                     <input type="checkbox" id="ps-opt-ips">
                 </div>
+                <div class="ps-row">
+                    <span>Mask national IDs</span>
+                    <input type="checkbox" id="ps-opt-national-ids">
+                </div>
                 <div class="ps-row" style="flex-wrap:wrap;">
                     <span style="width:100%;">Whitelisted sites (comma-separated)</span>
                     <input type="text" id="ps-opt-sites" placeholder="e.g. example.com, *.internal.com">
@@ -849,11 +859,13 @@
         const emailsCheckbox = settingsPanel.querySelector("#ps-opt-emails");
         const phonesCheckbox = settingsPanel.querySelector("#ps-opt-phones");
         const ipsCheckbox = settingsPanel.querySelector("#ps-opt-ips");
+        const nationalIdsCheckbox = settingsPanel.querySelector("#ps-opt-national-ids");
         const sitesInput = settingsPanel.querySelector("#ps-opt-sites");
 
         emailsCheckbox.checked = currentSettings.maskEmails;
         phonesCheckbox.checked = currentSettings.maskPhones;
         ipsCheckbox.checked = currentSettings.maskIPs;
+        nationalIdsCheckbox.checked = currentSettings.maskNationalIDs;
         sitesInput.value = currentSettings.whitelistedSites;
 
         document.body.appendChild(settingsPanel);
@@ -863,6 +875,7 @@
                 maskEmails: emailsCheckbox.checked,
                 maskPhones: phonesCheckbox.checked,
                 maskIPs: ipsCheckbox.checked,
+                maskNationalIDs: nationalIdsCheckbox.checked,
                 whitelistedSites: sitesInput.value,
             });
             settingsPanel.remove();
@@ -878,18 +891,41 @@
     }
 
     // Browser hooks & shadow DOM patches
+    function isCloudflareChallenge() {
+        try {
+            const host = window.location.hostname.toLowerCase();
+            const href = window.location.href.toLowerCase();
+            if (
+                host.endsWith("challenges.cloudflare.com") ||
+                host.endsWith("turnstile.cloudflare.com") ||
+                href.includes("/cdn-cgi/challenge-platform/") ||
+                href.includes("cf-challenge")
+            ) {
+                return true;
+            }
+        } catch (e) { }
+        return false;
+    }
+
     function hookFedCM() {
         const win = typeof unsafeWindow !== "undefined" ? unsafeWindow : window;
         try {
             if (win.navigator?.credentials?.get) {
                 const originalGet = win.navigator.credentials.get;
-                win.navigator.credentials.get = function (options) {
+                const patchedGet = function (options) {
                     return options?.identity
                         ? Promise.reject(
                             new DOMException("The user aborted the request.", "AbortError"),
                         )
                         : originalGet.call(this, options);
                 };
+                try {
+                    Object.defineProperty(patchedGet, "name", { value: "get", writable: false });
+                    patchedGet.toString = function () {
+                        return "function get() { [native code] }";
+                    };
+                } catch (e) { }
+                win.navigator.credentials.get = patchedGet;
             }
         } catch (e) { }
     }
@@ -904,16 +940,28 @@
         const patchedAttachShadow = function (init) {
             const shadowRoot = originalAttachShadow.call(this, init);
             try {
-                injectStyles(shadowRoot);
-                scanRoot(shadowRoot);
-                if (globalObserver) {
-                    observeShadowRoot(shadowRoot);
-                } else {
-                    pendingShadowRoots.push(shadowRoot);
+                const isCF = this?.classList?.contains("cf-turnstile") ||
+                    this?.id?.includes("cf-") ||
+                    this?.closest?.('[class*="cf-"], [id*="cf-"]');
+                if (!isCF) {
+                    injectStyles(shadowRoot);
+                    scanRoot(shadowRoot);
+                    if (globalObserver) {
+                        observeShadowRoot(shadowRoot);
+                    } else {
+                        pendingShadowRoots.push(shadowRoot);
+                    }
                 }
             } catch (e) { }
             return shadowRoot;
         };
+
+        try {
+            Object.defineProperty(patchedAttachShadow, "name", { value: "attachShadow", writable: false });
+            patchedAttachShadow.toString = function () {
+                return "function attachShadow() { [native code] }";
+            };
+        } catch (e) { }
 
         if (typeof exportFunction !== "undefined") {
             exportFunction(patchedAttachShadow, win.Element.prototype, {
@@ -987,8 +1035,32 @@
         if (typeof GM_addStyle !== "undefined") {
             GM_addStyle(css);
         } else {
-            addStyleNode(document.head || document.documentElement, css);
+            addStyleNode(document.documentElement || document.head, css);
         }
+    }
+
+    let globalListenersSet = false;
+    function setupGlobalListeners() {
+        if (globalListenersSet) {
+            return;
+        }
+        globalListenersSet = true;
+        window.addEventListener(
+            "click",
+            (e) => {
+                const span = e.target?.closest?.(".ps-hidden, .ps-visible");
+                if (!span) {
+                    return;
+                }
+                e.preventDefault();
+                e.stopPropagation();
+                const isHidden = span.classList.contains("ps-hidden");
+                span.className = isHidden ? "ps-visible" : "ps-hidden";
+                toggleElementMask(span, isHidden);
+                refreshBadge();
+            },
+            true,
+        );
     }
 
     function toEnglishNumerals(str) {
@@ -1058,13 +1130,17 @@
     }
 
     // Startup execution
-    hookFedCM();
-    hookAttachShadow();
-    setupStyles();
+    if (!isCloudflareChallenge()) {
+        hookFedCM();
+        hookAttachShadow();
+        setupStyles();
+        setupGlobalListeners();
+        setupObserver();
 
-    if (document.readyState === "loading") {
-        document.addEventListener("DOMContentLoaded", init);
-    } else {
-        init();
+        if (document.readyState === "loading") {
+            document.addEventListener("DOMContentLoaded", init);
+        } else {
+            init();
+        }
     }
 })();
